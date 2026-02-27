@@ -9,36 +9,29 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.ProjectEntity
+import com.example.whispertime.data.local.entity.TimingRecordEntity
 import com.example.whispertime.data.repository.ProjectRepository
+import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.service.TimerForegroundService
 import com.example.whispertime.timer.TimerConfig
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
+import com.example.whispertime.timer.TimerResult
 import com.example.whispertime.timer.TimerState
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class TimerViewModel(
     private val projectId: Long,
     private val appContext: Context,
     private val projectRepository: ProjectRepository,
+    private val timingRecordRepository: TimingRecordRepository,
     private val timerEngine: TimerEngine
 ) : ViewModel() {
-
-    data class TimerUiState(
-        val timerState: TimerState = TimerState.IDLE,
-        val elapsedMs: Long = 0L,
-        val remainingMs: Long? = null,
-        val prepareRemainingMs: Long? = null
-    )
 
     private val _projectName = MutableStateFlow("")
     val projectName: StateFlow<String> = _projectName.asStateFlow()
@@ -46,57 +39,18 @@ class TimerViewModel(
     private val _config = MutableStateFlow<TimerConfig?>(null)
     val config: StateFlow<TimerConfig?> = _config.asStateFlow()
 
-    val timerUiState: StateFlow<TimerUiState> = combine(
-        timerEngine.state,
-        timerEngine.elapsedMs,
-        timerEngine.remainingMs,
-        timerEngine.prepareRemainingMs
-    ) { state, elapsed, remaining, prepareRemaining ->
-        TimerUiState(
-            timerState = state,
-            elapsedMs = elapsed,
-            remainingMs = remaining,
-            prepareRemainingMs = prepareRemaining
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
-        initialValue = TimerUiState()
-    )
-
-    val timerState: StateFlow<TimerState> = timerUiState
-        .map { it.timerState }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
-            initialValue = TimerState.IDLE
-        )
-    val elapsedMs: StateFlow<Long> = timerUiState
-        .map { it.elapsedMs }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
-            initialValue = 0L
-        )
-    val remainingMs: StateFlow<Long?> = timerUiState
-        .map { it.remainingMs }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
-            initialValue = null
-        )
-    val prepareRemainingMs: StateFlow<Long?> = timerUiState
-        .map { it.prepareRemainingMs }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
-            initialValue = null
-        )
+    val timerState: StateFlow<TimerState> = timerEngine.state
+    val elapsedMs: StateFlow<Long> = timerEngine.elapsedMs
+    val remainingMs: StateFlow<Long?> = timerEngine.remainingMs
+    val prepareRemainingMs: StateFlow<Long?> = timerEngine.prepareRemainingMs
     val shouldAnnounce: SharedFlow<Long> = timerEngine.shouldAnnounce
 
     private var project: ProjectEntity? = null
+    private var activeTimerConfig: TimerConfig? = null
+    private var activeStartEpoch: Long = 0L
 
     init {
+        observeCompletionAnnouncements()
         loadProject()
     }
 
@@ -127,6 +81,8 @@ class TimerViewModel(
         )
 
         _config.value = timerConfig
+        activeTimerConfig = timerConfig
+        activeStartEpoch = System.currentTimeMillis()
 
         val intent = Intent(appContext, TimerForegroundService::class.java).apply {
             action = TimerForegroundService.ACTION_START
@@ -159,6 +115,7 @@ class TimerViewModel(
             action = TimerForegroundService.ACTION_STOP
         }
         appContext.startService(intent)
+        clearActiveTimer()
     }
 
     fun cancelTimer() {
@@ -166,6 +123,7 @@ class TimerViewModel(
             action = TimerForegroundService.ACTION_CANCEL
         }
         appContext.startService(intent)
+        clearActiveTimer()
     }
 
     private fun loadProject() {
@@ -201,6 +159,49 @@ class TimerViewModel(
         )
     }
 
+    private fun observeCompletionAnnouncements() {
+        viewModelScope.launch {
+            shouldAnnounce.collect { signal ->
+                if (signal != -1L) return@collect
+
+                val currentConfig = activeTimerConfig ?: return@collect
+                val durationMs = currentConfig.durationMs ?: elapsedMs.value
+                val endEpoch = System.currentTimeMillis()
+                val startEpoch = if (activeStartEpoch > 0L) {
+                    activeStartEpoch
+                } else {
+                    endEpoch - durationMs
+                }
+
+                saveRecord(
+                    TimerResult(
+                        projectId = currentConfig.projectId,
+                        startTimeEpoch = startEpoch,
+                        endTimeEpoch = endEpoch,
+                        durationMs = durationMs
+                    )
+                )
+                clearActiveTimer()
+            }
+        }
+    }
+
+    private suspend fun saveRecord(result: TimerResult) {
+        val record = TimingRecordEntity(
+            projectId = result.projectId,
+            startTime = result.startTimeEpoch,
+            endTime = result.endTimeEpoch,
+            durationMs = result.durationMs,
+            createdAt = System.currentTimeMillis()
+        )
+        timingRecordRepository.insert(record)
+    }
+
+    private fun clearActiveTimer() {
+        activeTimerConfig = null
+        activeStartEpoch = 0L
+    }
+
     private fun String.toTimerMode(): TimerMode {
         return if (this == TimerMode.COUNTDOWN.name) {
             TimerMode.COUNTDOWN
@@ -219,6 +220,7 @@ class TimerViewModel(
                         projectId = projectId,
                         appContext = application.applicationContext,
                         projectRepository = container.projectRepository,
+                        timingRecordRepository = container.timingRecordRepository,
                         timerEngine = container.timerEngine
                     ) as T
                 }

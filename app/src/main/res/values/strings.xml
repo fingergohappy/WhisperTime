@@ -1,13 +1,3 @@
 <resources>
     <string name="app_name">WhisperTime</string>
-    <string name="timer_service_channel_name">Timer Service</string>
-    <string name="timer_service_notification_title">WhisperTime Timer</string>
-    <string name="timer_service_notification_text_running">Timer running</string>
-    <string name="timer_service_notification_text_paused">Timer paused</string>
-    <string name="timer_service_action_pause">Pause</string>
-    <string name="timer_service_action_resume">Resume</string>
-    <string name="timer_service_action_stop">Stop</string>
-    <string name="timer_service_action_cancel">Cancel</string>
-    <string name="timer_service_fgs_subtype">countdown_timer_active</string>
 </resources>
-

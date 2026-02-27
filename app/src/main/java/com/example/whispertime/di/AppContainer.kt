@@ -2,27 +2,20 @@ package com.example.whispertime.di
 
 import android.content.Context
 import com.example.whispertime.data.local.WhisperTimeDatabase
+import com.example.whispertime.data.local.dao.ProjectDao
+import com.example.whispertime.data.local.dao.TimingRecordDao
 import com.example.whispertime.data.repository.ProjectRepository
 import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.tts.VoiceAnnouncementManager
 
 class AppContainer(context: Context) {
-    private val database: WhisperTimeDatabase = WhisperTimeDatabase.getInstance(context)
+    private val database = WhisperTimeDatabase.getInstance(context)
+    val projectDao: ProjectDao = database.projectDao()
+    val timingRecordDao: TimingRecordDao = database.timingRecordDao()
 
-    val projectRepository: ProjectRepository = ProjectRepository(database.projectDao())
-
-    val timingRecordRepository: TimingRecordRepository =
-        TimingRecordRepository(database.timingRecordDao())
-
-    val timerEngine: TimerEngine = TimerEngine()
-    val voiceAnnouncementManager: VoiceAnnouncementManager = VoiceAnnouncementManager(context)
-
-    init {
-        voiceAnnouncementManager.init()
-    }
-
-    fun clear() {
-        voiceAnnouncementManager.release()
-    }
+    val projectRepository = ProjectRepository(projectDao)
+    val timingRecordRepository = TimingRecordRepository(timingRecordDao)
+    val timerEngine = TimerEngine()
+    val voiceAnnouncementManager = VoiceAnnouncementManager(context).also { it.init() }
 }

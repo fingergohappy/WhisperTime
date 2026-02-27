@@ -1,12 +1,6 @@
 package com.example.whispertime.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -28,100 +22,92 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         composable(Screen.ProjectList.route) {
             ProjectListScreen(
                 onNavigateToTimer = { projectId ->
-                    navController.navigate(Screen.Timer.createRoute(projectId))
+                    navController.navigate(Screen.Timer(projectId).route)
                 },
                 onNavigateToRecords = { projectId ->
-                    navController.navigate(Screen.Records.createRoute(projectId))
+                    navController.navigate(Screen.RecordList(projectId).route)
                 },
                 onNavigateToEdit = { projectId ->
-                    navController.navigate(Screen.ProjectEdit.createRoute(projectId))
+                    val route = if (projectId != null) {
+                        Screen.ProjectEdit(projectId).route
+                    } else {
+                        Screen.ProjectEdit(null).route
+                    }
+                    navController.navigate(route)
                 }
             )
         }
         
         composable(
-            route = Screen.ProjectEdit.route,
-            arguments = listOf(navArgument("projectId") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            })
+            route = Screen.ProjectEdit.ROUTE,
+            arguments = listOf(
+                navArgument("projectId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "new"
+                }
+            )
         ) { backStackEntry ->
-            val projectIdString = backStackEntry.arguments?.getString("projectId")
-            val projectId = if (projectIdString.isNullOrBlank()) null else projectIdString.toLongOrNull()
+            val projectIdStr = backStackEntry.arguments?.getString("projectId")
+            val projectId = if (projectIdStr == "new" || projectIdStr == null) null else projectIdStr.toLongOrNull()
             
             ProjectEditScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-
+        
         composable(
-            route = Screen.Timer.route,
-            arguments = listOf(navArgument("projectId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val arguments = backStackEntry.arguments
-            if (arguments == null || !arguments.containsKey("projectId")) {
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
+            route = Screen.Timer.ROUTE,
+            arguments = listOf(
+                navArgument("projectId") {
+                    type = NavType.LongType
                 }
-                return@composable
-            }
-            val projectId = arguments.getLong("projectId")
+            )
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getLong("projectId") ?: return@composable
             TimerScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToRecords = { id -> navController.navigate(Screen.Records.createRoute(id)) }
+                onNavigateToRecords = { pid ->
+                    navController.navigate(Screen.RecordList(pid).route) {
+                        popUpTo(Screen.Timer.ROUTE) { inclusive = true }
+                    }
+                }
             )
         }
-
+        
         composable(
-            route = Screen.Records.route,
-            arguments = listOf(navArgument("projectId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val arguments = backStackEntry.arguments
-            if (arguments == null || !arguments.containsKey("projectId")) {
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
+            route = Screen.RecordList.ROUTE,
+            arguments = listOf(
+                navArgument("projectId") {
+                    type = NavType.LongType
                 }
-                return@composable
-            }
-            val projectId = arguments.getLong("projectId")
+            )
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getLong("projectId") ?: return@composable
             RecordListScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEdit = { recordId ->
-                    navController.navigate(Screen.RecordEdit.createRoute(recordId))
+                    navController.navigate(Screen.RecordEdit(recordId).route)
                 }
             )
         }
-
+        
         composable(
-            route = Screen.RecordEdit.route,
-            arguments = listOf(navArgument("recordId") {
-                type = NavType.LongType
-            })
-        ) { backStackEntry ->
-            val arguments = backStackEntry.arguments
-            if (arguments == null || !arguments.containsKey("recordId")) {
-                LaunchedEffect(Unit) {
-                    navController.popBackStack()
+            route = Screen.RecordEdit.ROUTE,
+            arguments = listOf(
+                navArgument("recordId") {
+                    type = NavType.LongType
                 }
-                return@composable
-            }
-
-            val recordId = arguments.getLong("recordId")
+            )
+        ) { backStackEntry ->
+            val recordId = backStackEntry.arguments?.getLong("recordId") ?: return@composable
             RecordEditScreen(
                 recordId = recordId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-    }
-}
-
-@Composable
-fun PlaceholderScreen(text: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = text)
     }
 }

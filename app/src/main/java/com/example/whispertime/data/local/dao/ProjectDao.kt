@@ -15,7 +15,7 @@ interface ProjectDao {
     @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
     fun getAll(): Flow<List<ProjectEntity>>
 
-    @Query("SELECT * FROM projects WHERE id = :id LIMIT 1")
+    @Query("SELECT * FROM projects WHERE id = :id")
     fun getById(id: Long): Flow<ProjectEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

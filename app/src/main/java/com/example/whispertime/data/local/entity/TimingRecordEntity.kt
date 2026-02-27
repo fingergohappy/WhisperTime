@@ -24,5 +24,5 @@ data class TimingRecordEntity(
     val startTime: Long,
     val endTime: Long,
     val durationMs: Long,
-    val createdAt: Long,
+    val createdAt: Long
 )

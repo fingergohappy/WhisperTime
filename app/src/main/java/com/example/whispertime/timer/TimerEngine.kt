@@ -42,7 +42,7 @@ class TimerEngine(
     private var startEpoch: Long = 0L
     private var startElapsed: Long = 0L
     private var pausedElapsedMs: Long = 0L
-    private var lastAnnouncedIntervalCount: Long = 0L
+    private var lastAnnouncedMs: Long = 0L
     private var timerJob: Job? = null
 
     fun start(config: TimerConfig) {
@@ -50,23 +50,20 @@ class TimerEngine(
 
         this.config = config
         pausedElapsedMs = 0L
-        lastAnnouncedIntervalCount = 0L
+        lastAnnouncedMs = 0L
         _elapsedMs.value = 0L
-        _remainingMs.value = if (config.mode == TimerMode.COUNTDOWN) config.durationMs else null
+        _remainingMs.value = config.durationMs
 
-        val prepareTimeMs = config.prepareTimeMs
-        if (prepareTimeMs != null && prepareTimeMs > 0L) {
+        if (config.prepareTimeMs != null && config.prepareTimeMs > 0L) {
             _state.value = TimerState.PREPARING
-            _prepareRemainingMs.value = prepareTimeMs
-            startPrepareLoop(prepareTimeMs)
-            return
+            _prepareRemainingMs.value = config.prepareTimeMs
+            startPrepareLoop(config.prepareTimeMs)
+        } else {
+            startEpoch = System.currentTimeMillis()
+            startElapsed = timeSource.elapsedRealtime()
+            _state.value = TimerState.RUNNING
+            startTickLoop()
         }
-
-        _prepareRemainingMs.value = null
-        startEpoch = System.currentTimeMillis()
-        startElapsed = timeSource.elapsedRealtime()
-        _state.value = TimerState.RUNNING
-        startTickLoop()
     }
 
     fun pause() {
@@ -118,20 +115,19 @@ class TimerEngine(
         _remainingMs.value = null
         _prepareRemainingMs.value = null
         pausedElapsedMs = 0L
-        lastAnnouncedIntervalCount = 0L
+        lastAnnouncedMs = 0L
         config = null
         timerJob = null
     }
 
     private fun startPrepareLoop(prepareTimeMs: Long) {
-        val prepareStartElapsed = timeSource.elapsedRealtime()
+        val prepareStart = timeSource.elapsedRealtime()
         timerJob = coroutineScope.launch {
             while (isActive) {
-                val elapsedPreparing = timeSource.elapsedRealtime() - prepareStartElapsed
-                val remainingPreparing = (prepareTimeMs - elapsedPreparing).coerceAtLeast(0L)
-                _prepareRemainingMs.value = remainingPreparing
-
-                if (remainingPreparing == 0L) {
+                val elapsed = timeSource.elapsedRealtime() - prepareStart
+                val remaining = (prepareTimeMs - elapsed).coerceAtLeast(0L)
+                _prepareRemainingMs.value = remaining
+                if (remaining == 0L) {
                     _prepareRemainingMs.value = null
                     startEpoch = System.currentTimeMillis()
                     startElapsed = timeSource.elapsedRealtime()
@@ -139,7 +135,6 @@ class TimerEngine(
                     startTickLoop()
                     break
                 }
-
                 delay(100L)
             }
         }
@@ -164,14 +159,11 @@ class TimerEngine(
                     }
                 }
 
-                val voiceIntervalMs = currentConfig.voiceIntervalMs
-                if (voiceIntervalMs != null && voiceIntervalMs > 0L) {
-                    val intervalCount = elapsed / voiceIntervalMs
-                    if (intervalCount > lastAnnouncedIntervalCount) {
-                        for (count in (lastAnnouncedIntervalCount + 1)..intervalCount) {
-                            _shouldAnnounce.tryEmit(count * voiceIntervalMs)
-                        }
-                        lastAnnouncedIntervalCount = intervalCount
+                val intervalMs = currentConfig.voiceIntervalMs
+                if (intervalMs != null && intervalMs > 0L) {
+                    if (elapsed - lastAnnouncedMs >= intervalMs) {
+                        lastAnnouncedMs = (elapsed / intervalMs) * intervalMs
+                        _shouldAnnounce.tryEmit(elapsed)
                     }
                 }
 

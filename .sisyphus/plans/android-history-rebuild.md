@@ -485,7 +485,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   - `./gradlew test`
   - `./gradlew :app:assembleDebug`
 
-- [ ] 33. `chore(sync): 功能态最终对齐（与原 HEAD 做严格 diff 校验）`
+- [x] 33. `chore(sync): 功能态最终对齐（与原 HEAD 做严格 diff 校验）`
 
   **要做什么**：
   - 确保此提交结束后（不含注释），与原分支目标 HEAD 在功能代码层面一致

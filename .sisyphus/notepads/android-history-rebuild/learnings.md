@@ -39,3 +39,6 @@
 - 2026-02-27: 任务 30 校验结果显示 `TimerScreen` 按钮已完整走 `ViewModel -> TimerForegroundService Intent` 链路：start 使用 `ContextCompat.startForegroundService`，pause/resume/stop/cancel 通过 action Intent 控制运行中的服务。
 - 2026-02-27: 任务 30 的 start 参数已与服务协议对齐，`EXTRA_PROJECT_ID/NAME/TIMER_MODE/DURATION_MS/INTERVAL_MS/PREPARE_MS` 在 ViewModel 写入与 Service 读取保持一致，无需新增协议字段。
 - 2026-02-27: 任务 32 在 `TimerForegroundService.handleStart()` 增加“非法 projectId/COUNTDOWN 缺少 duration”的 guard + warning log，可在不影响合法流程行为的前提下提升边界可观测性。
+- 2026-02-27: 任务 33 在当前分支名与计划参考名重名（均为 `tour`）时，应优先选择稳定外部目标分支（本仓库为 `main`）执行严格差异校验，避免 `tour..HEAD` 退化为自比较。
+- 2026-02-27: 功能态最终对齐可先限定路径集（`build.gradle.kts`、`settings.gradle.kts`、`gradle/libs.versions.toml`、`app/**`）完成 hard parity，再保留 `.sisyphus/**` 作为过程文档差异。
+- 2026-02-27: 任务 31 资源对齐完成：backup_rules.xml/data_extraction_rules.xml 已存在且配置正确；strings.xml 补齐 timer_service_channel_name/timer_service_fgs_subtype；themes.xml/colors.xml 保持现状；所有 launcher 图标（12 个 webp + 2 个 xml）已完整。

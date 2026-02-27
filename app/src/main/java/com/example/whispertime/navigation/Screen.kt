@@ -1,41 +1,31 @@
 package com.example.whispertime.navigation
 
 sealed class Screen(val route: String) {
-    /**
-     * Home screen showing list of projects
-     */
     object ProjectList : Screen("project_list")
-
-    /**
-     * Create or edit a project.
-     * @param projectId Project ID (optional, null for creation)
-     */
-    object ProjectEdit : Screen("project_edit?projectId={projectId}") {
-        fun createRoute(projectId: Long? = null) =
-            projectId?.let { "project_edit?projectId=$it" } ?: "project_edit"
+    
+    data class ProjectEdit(val projectId: Long? = null) : Screen(
+        if (projectId != null) "project_edit/$projectId" else "project_edit/new"
+    ) {
+        companion object {
+            const val ROUTE = "project_edit/{projectId}"
+        }
     }
-
-    /**
-     * Timer screen for a specific project.
-     * @param projectId Project ID
-     */
-    object Timer : Screen("timer/{projectId}") {
-        fun createRoute(projectId: Long) = "timer/$projectId"
+    
+    data class Timer(val projectId: Long) : Screen("timer/$projectId") {
+        companion object {
+            const val ROUTE = "timer/{projectId}"
+        }
     }
-
-    /**
-     * History records list for a specific project.
-     * @param projectId Project ID
-     */
-    object Records : Screen("records/{projectId}") {
-        fun createRoute(projectId: Long) = "records/$projectId"
+    
+    data class RecordList(val projectId: Long) : Screen("record_list/$projectId") {
+        companion object {
+            const val ROUTE = "record_list/{projectId}"
+        }
     }
-
-    /**
-     * Edit a specific timing record.
-     * @param recordId Record ID
-     */
-    object RecordEdit : Screen("record_edit/{recordId}") {
-        fun createRoute(recordId: Long) = "record_edit/$recordId"
+    
+    data class RecordEdit(val recordId: Long) : Screen("record_edit/$recordId") {
+        companion object {
+            const val ROUTE = "record_edit/{recordId}"
+        }
     }
 }

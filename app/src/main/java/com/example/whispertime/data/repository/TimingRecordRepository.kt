@@ -8,17 +8,8 @@ enum class EditedField { START_TIME, END_TIME, DURATION_MS }
 
 class TimingRecordRepository(private val timingRecordDao: TimingRecordDao) {
 
-    fun getRecordsByProjectId(projectId: Long): Flow<List<TimingRecordEntity>> =
-        timingRecordDao.getByProjectId(projectId)
-
-    fun getTotalDurationByProjectId(projectId: Long): Flow<Long?> =
-        timingRecordDao.getTotalDuration(projectId)
-
-    fun getRecordCountByProjectId(projectId: Long): Flow<Int> =
-        timingRecordDao.getRecordCount(projectId)
-
     fun getByProjectId(projectId: Long): Flow<List<TimingRecordEntity>> =
-        getRecordsByProjectId(projectId)
+        timingRecordDao.getByProjectId(projectId)
 
     fun getById(id: Long): Flow<TimingRecordEntity?> = timingRecordDao.getById(id)
 
@@ -34,10 +25,10 @@ class TimingRecordRepository(private val timingRecordDao: TimingRecordDao) {
     }
 
     fun getTotalDuration(projectId: Long): Flow<Long?> =
-        getTotalDurationByProjectId(projectId)
+        timingRecordDao.getTotalDuration(projectId)
 
     fun getRecordCount(projectId: Long): Flow<Int> =
-        getRecordCountByProjectId(projectId)
+        timingRecordDao.getRecordCount(projectId)
 
     /**
      * Updates a timing record with linked-field adjustment.

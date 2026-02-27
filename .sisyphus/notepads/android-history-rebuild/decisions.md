@@ -16,8 +16,11 @@
 ## Task 27: RecordListScreen and Navigation
 - **Navigation Type for RecordEdit**: Used `String` type for `id` argument in `RecordEdit` route to support potential nullable IDs (for create vs edit), although for this specific task we are navigating to *edit* an existing record, so the ID is available. However, keeping it consistent with  (which supports create/edit) is a good practice.
 - **Placeholder for RecordEdit**: Created a placeholder for `RecordEditScreen` in `WhisperTimeNavHost` as the actual screen implementation is in Task 28.
+- 2026-02-27: 任务 33 决定将“严格 diff 目标参考”从计划中的 `tour..HEAD` 语义安全替换为 `main`，原因是当前执行分支即 `tour`，直接对比 `tour..HEAD` 无法形成稳定外部基线。
+- 2026-02-27: 任务 33 决定在功能范围（`build.gradle.kts`、`settings.gradle.kts`、`gradle/libs.versions.toml`、`app/**`）直接回放到 `main` 内容，以最小风险达成功能态一致，不提前触碰任务 34-38 的注释扩展。
 - 2026-02-27: 任务 32 决定仅做 behavior-preserving 的细节抛光（参数 guard/日志补齐），不引入任何 task 33 的 diff-sync 改动。
 
 ## Task 27: RecordListScreen and Navigation
 - **Navigation Type for RecordEdit**: Used `String` type for `id` argument in `RecordEdit` route to support potential nullable IDs (for create vs edit), although for this specific task we are navigating to *edit* an existing record, so the ID is available. However, keeping it consistent with `ProjectEdit` (which supports create/edit) is a good practice.
 - **Placeholder for RecordEdit**: Created a placeholder for `RecordEditScreen` in `WhisperTimeNavHost` as the actual screen implementation is in Task 28.
+- 2026-02-27: 任务 31 决定保留 strings.xml 中的 timer_service_channel_name（"计时器"）与 timer_service_fgs_subtype（"timer"），以支持 TimerForegroundService 与 Manifest 的配置需求，避免硬编码字符串。

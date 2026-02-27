@@ -23,13 +23,11 @@ class ProjectListViewModel(
             initialValue = emptyList()
         )
 
-    fun onDeleteProject(project: ProjectEntity) {
+    fun deleteProject(project: ProjectEntity) {
         viewModelScope.launch {
             projectRepository.deleteProject(project)
         }
     }
-
-    fun deleteProject(project: ProjectEntity) = onDeleteProject(project)
 
     companion object {
         fun factory(application: Application): ViewModelProvider.Factory =

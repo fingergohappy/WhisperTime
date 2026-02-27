@@ -1,66 +1,74 @@
 package com.example.whispertime.service
 
-import android.app.PendingIntent
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.example.whispertime.R
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.TimingRecordEntity
 import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.timer.TimerConfig
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
+import com.example.whispertime.timer.TimerState
 import com.example.whispertime.tts.VoiceAnnouncementManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class TimerForegroundService : Service() {
+
     private val tag = "TimerForegroundService"
-    private var timerStatus: TimerStatus = TimerStatus.IDLE
-    private var currentProjectName: String = ""
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private lateinit var timerEngine: TimerEngine
     private lateinit var timingRecordRepository: TimingRecordRepository
-    private lateinit var voiceAnnouncementManager: VoiceAnnouncementManager
+    private lateinit var voiceManager: VoiceAnnouncementManager
+    private var serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var notificationJob: Job? = null
     private var completionJob: Job? = null
-    private var prepareAnnouncementJob: Job? = null
-    private var activeProjectId: Long? = null
-    private var activeDurationMs: Long? = null
-    private var activeTimerMode: TimerMode = TimerMode.COUNT_UP
-    private var activeStartEpoch: Long = 0L
-    private var completionRecorded: Boolean = false
-    private var lastPrepareAnnouncedSecond: Long? = null
+    private var announcementJob: Job? = null
+    private var startCountdownJob: Job? = null
+    private var preparingSpeechJob: Job? = null
+    private var currentProjectName: String = ""
+    private var currentMode: TimerMode = TimerMode.COUNT_UP
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(tag, "onCreate()")
         val container = (application as WhisperTimeApplication).container
         timerEngine = container.timerEngine
         timingRecordRepository = container.timingRecordRepository
-        voiceAnnouncementManager = container.voiceAnnouncementManager
+        voiceManager = container.voiceAnnouncementManager
         createNotificationChannel()
-        observeTimerCompletion()
-        observePrepareAnnouncements()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(tag, "onStartCommand(): action=${intent?.action}")
         when (intent?.action) {
             ACTION_START -> handleStart(intent)
-            ACTION_PAUSE -> handlePause()
-            ACTION_RESUME -> handleResume()
-            ACTION_STOP -> stopForegroundService(stopAction = true)
-            ACTION_CANCEL -> stopForegroundService(stopAction = false)
-            null -> Unit
+            ACTION_PAUSE -> {
+                Log.d(tag, "ACTION_PAUSE")
+                timerEngine.pause()
+                updateNotification()
+            }
+            ACTION_RESUME -> {
+                Log.d(tag, "ACTION_RESUME")
+                timerEngine.resume()
+                startNotificationUpdates()
+            }
+            ACTION_STOP -> handleStop()
+            ACTION_CANCEL -> handleCancel()
         }
         return START_NOT_STICKY
     }
@@ -68,221 +76,219 @@ class TimerForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        Log.d(tag, "onDestroy()")
+        startCountdownJob?.cancel()
+        preparingSpeechJob?.cancel()
+        notificationJob?.cancel()
         completionJob?.cancel()
-        prepareAnnouncementJob?.cancel()
-        voiceAnnouncementManager.stopSpeaking()
+        announcementJob?.cancel()
         serviceScope.cancel()
-        clearActiveSession(resetCompletionFlag = true)
         super.onDestroy()
     }
 
     private fun handleStart(intent: Intent) {
-        val projectId = intent.getLongExtra(EXTRA_PROJECT_ID, -1L).takeIf { it > 0L } ?: run {
-            Log.w(tag, "handleStart(): ignored because projectId is missing or invalid")
-            return
-        }
-        currentProjectName = intent.getStringExtra(EXTRA_PROJECT_NAME).orEmpty()
-        val timerMode = if (intent.getStringExtra(EXTRA_TIMER_MODE) == TimerMode.COUNTDOWN.name) {
-            TimerMode.COUNTDOWN
-        } else {
-            TimerMode.COUNT_UP
-        }
-        val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, -1L).takeIf { it > 0L }
-        val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, -1L).takeIf { it > 0L }
-        val prepareMs = intent.getLongExtra(EXTRA_PREPARE_MS, -1L).takeIf { it > 0L }
+        startCountdownJob?.cancel()
+        preparingSpeechJob?.cancel()
+        val projectId = intent.getLongExtra(EXTRA_PROJECT_ID, -1L)
+        val projectName = intent.getStringExtra(EXTRA_PROJECT_NAME) ?: ""
+        val modeName = intent.getStringExtra(EXTRA_TIMER_MODE) ?: TimerMode.COUNT_UP.name
+        val mode = if (modeName == TimerMode.COUNTDOWN.name) TimerMode.COUNTDOWN else TimerMode.COUNT_UP
+        val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 0L).takeIf { it > 0L }
+        val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, 0L).takeIf { it > 0L }
+        val prepareTimeMs = intent.getLongExtra(EXTRA_PREPARE_MS, 0L).takeIf { it > 0L }
 
-        if (timerMode == TimerMode.COUNTDOWN && durationMs == null) {
-            Log.w(tag, "handleStart(): ignored COUNTDOWN start because duration is missing or invalid")
-            return
-        }
-
-        voiceAnnouncementManager.stopSpeaking()
-        activeProjectId = projectId
-        activeDurationMs = durationMs
-        activeTimerMode = timerMode
-        activeStartEpoch = System.currentTimeMillis()
-        completionRecorded = false
-
-        timerEngine.start(
-            TimerConfig(
-                projectId = projectId,
-                projectName = currentProjectName,
-                mode = timerMode,
-                durationMs = durationMs,
-                voiceIntervalMs = intervalMs,
-                prepareTimeMs = prepareMs
-            )
+        Log.d(
+            tag,
+            "handleStart(): projectId=$projectId name=$projectName mode=$mode durationMs=$durationMs intervalMs=$intervalMs prepareTimeMs=$prepareTimeMs"
         )
-        timerStatus = TimerStatus.RUNNING
+
+        currentProjectName = projectName
+        currentMode = mode
+
+        val config = TimerConfig(
+            projectId = projectId,
+            projectName = projectName,
+            mode = mode,
+            durationMs = durationMs,
+            voiceIntervalMs = intervalMs,
+            prepareTimeMs = prepareTimeMs
+        )
+
         startForeground(NOTIFICATION_ID, buildNotification())
-    }
+        startNotificationUpdates()
+        observeCompletion()
+        observeAnnouncements()
 
-    private fun handlePause() {
-        if (timerStatus != TimerStatus.RUNNING) return
-        timerEngine.pause()
-        timerStatus = TimerStatus.PAUSED
-        updateNotification()
-    }
+        timerEngine.start(config)
+        Log.d(tag, "handleStart(): engine started; state=${timerEngine.state.value}")
 
-    private fun handleResume() {
-        if (timerStatus != TimerStatus.PAUSED) return
-        timerEngine.resume()
-        timerStatus = TimerStatus.RUNNING
-        updateNotification()
-    }
-
-    private fun stopForegroundService(stopAction: Boolean) {
-        voiceAnnouncementManager.stopSpeaking()
-        if (stopAction) {
-            timerEngine.stop()
-        } else {
-            timerEngine.cancel()
+        val countdownSeconds = prepareTimeMs?.let { ((it + 999L) / 1000L).toInt() } ?: 0
+        if (countdownSeconds <= 0) {
+            voiceManager.announceQueued("开始")
+            return
         }
-        clearActiveSession(resetCompletionFlag = true)
-        timerStatus = TimerStatus.IDLE
+
+        preparingSpeechJob = serviceScope.launch {
+            var lastSpokenSecond = Int.MIN_VALUE
+            var hasSpokenStart = false
+
+            timerEngine.prepareRemainingMs.collect { remainingMs ->
+                if (!isActive) return@collect
+                if (remainingMs == null) {
+                    if (!hasSpokenStart) {
+                        delay(50L)
+                        if (timerEngine.state.value == TimerState.RUNNING) {
+                            hasSpokenStart = true
+                            voiceManager.announceQueued("开始")
+                        }
+                    }
+                    cancel()
+                    return@collect
+                }
+                val secondsLeft = ((remainingMs + 999L) / 1000L).toInt()
+                if (secondsLeft <= 0) return@collect
+                if (secondsLeft == lastSpokenSecond) return@collect
+
+                lastSpokenSecond = secondsLeft
+                voiceManager.announceQueued(secondsLeft.toString())
+            }
+        }
+    }
+
+    private fun handleStop() {
+        Log.d(tag, "handleStop(): state=${timerEngine.state.value}")
+        startCountdownJob?.cancel()
+        preparingSpeechJob?.cancel()
+        voiceManager.stopSpeaking()
+        notificationJob?.cancel()
+        completionJob?.cancel()
+        announcementJob?.cancel()
+        if (timerEngine.state.value != TimerState.IDLE) {
+            voiceManager.announceEnd()
+        }
+        serviceScope.launch {
+            val result = timerEngine.stop()
+            Log.d(tag, "handleStop(): engine stop result=$result")
+            if (result != null) {
+                val record = TimingRecordEntity(
+                    projectId = result.projectId,
+                    startTime = result.startTimeEpoch,
+                    endTime = result.endTimeEpoch,
+                    durationMs = result.durationMs,
+                    createdAt = System.currentTimeMillis()
+                )
+                timingRecordRepository.insert(record)
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    private fun handleCancel() {
+        Log.d(tag, "handleCancel(): state=${timerEngine.state.value}")
+        startCountdownJob?.cancel()
+        preparingSpeechJob?.cancel()
+        voiceManager.stopSpeaking()
+        notificationJob?.cancel()
+        completionJob?.cancel()
+        announcementJob?.cancel()
+        timerEngine.cancel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
-    private fun observeTimerCompletion() {
+    private fun observeCompletion() {
         completionJob?.cancel()
         completionJob = serviceScope.launch {
             timerEngine.shouldAnnounce.collect { signal ->
-                if (signal > 0L) {
-                    if (activeTimerMode == TimerMode.COUNTDOWN) {
-                        val remaining = (activeDurationMs ?: 0L) - signal
-                        voiceAnnouncementManager.announceRemaining(remaining.coerceAtLeast(0L))
+                if (signal == -1L) {
+                    Log.d(tag, "observeCompletion(): completion signal received")
+                }
+                if (signal == -1L) {
+                    handleStop()
+                }
+            }
+        }
+    }
+
+    private fun observeAnnouncements() {
+        announcementJob?.cancel()
+        announcementJob = serviceScope.launch {
+            timerEngine.shouldAnnounce.collect { signal ->
+                if (signal == -1L) return@collect
+                val state = timerEngine.state.value
+                Log.d(tag, "observeAnnouncements(): signal=$signal state=$state mode=$currentMode")
+                if (state == TimerState.RUNNING) {
+                    if (currentMode == TimerMode.COUNTDOWN) {
+                        voiceManager.announceRemaining(timerEngine.remainingMs.value ?: 0L)
                     } else {
-                        voiceAnnouncementManager.announceElapsed(signal)
+                        voiceManager.announceElapsed(timerEngine.elapsedMs.value)
                     }
-                    return@collect
-                }
-                if (signal != -1L || completionRecorded) return@collect
-
-                val projectId = activeProjectId ?: run {
-                    Log.w(tag, "observeTimerCompletion(): skip persistence because activeProjectId is missing")
-                    return@collect
-                }
-                val durationMs = activeDurationMs ?: run {
-                    Log.w(tag, "observeTimerCompletion(): skip persistence because activeDurationMs is missing")
-                    return@collect
-                }
-                val endEpoch = System.currentTimeMillis()
-                val startEpoch = if (activeStartEpoch > 0L) {
-                    activeStartEpoch
-                } else {
-                    endEpoch - durationMs
-                }
-
-                timingRecordRepository.insert(
-                    TimingRecordEntity(
-                        projectId = projectId,
-                        startTime = startEpoch,
-                        endTime = endEpoch,
-                        durationMs = durationMs,
-                        createdAt = endEpoch
-                    )
-                )
-
-                completionRecorded = true
-                clearActiveSession(resetCompletionFlag = false)
-                voiceAnnouncementManager.stopSpeaking()
-                timerStatus = TimerStatus.IDLE
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
-        }
-    }
-
-    private fun observePrepareAnnouncements() {
-        prepareAnnouncementJob?.cancel()
-        prepareAnnouncementJob = serviceScope.launch {
-            timerEngine.prepareRemainingMs.collect { remainingMs ->
-                val remainingSecond = remainingMs
-                    ?.takeIf { it > 0L }
-                    ?.let { (it + 999L) / 1000L }
-
-                if (remainingSecond == null) {
-                    lastPrepareAnnouncedSecond = null
-                    return@collect
-                }
-
-                if (remainingSecond != lastPrepareAnnouncedSecond) {
-                    voiceAnnouncementManager.announce(remainingSecond.toString())
-                    lastPrepareAnnouncedSecond = remainingSecond
                 }
             }
         }
     }
 
-    private fun clearActiveSession(resetCompletionFlag: Boolean) {
-        activeProjectId = null
-        activeDurationMs = null
-        activeTimerMode = TimerMode.COUNT_UP
-        activeStartEpoch = 0L
-        lastPrepareAnnouncedSecond = null
-        if (resetCompletionFlag) {
-            completionRecorded = false
+    private fun startNotificationUpdates() {
+        notificationJob?.cancel()
+        notificationJob = serviceScope.launch {
+            while (isActive) {
+                updateNotification()
+                delay(1000L)
+            }
         }
     }
 
     private fun updateNotification() {
+        val notification = buildNotification()
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, buildNotification())
+        manager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification(): Notification {
-        val contentTextRes = if (timerStatus == TimerStatus.PAUSED) {
-            R.string.timer_service_notification_text_paused
-        } else {
-            R.string.timer_service_notification_text_running
+        val displayTime = when (currentMode) {
+            TimerMode.COUNTDOWN -> formatTime(timerEngine.remainingMs.value ?: 0L)
+            TimerMode.COUNT_UP -> formatTime(timerEngine.elapsedMs.value)
         }
-        val contentText = getString(contentTextRes).let { base ->
-            if (currentProjectName.isBlank()) base else "$base: $currentProjectName"
-        }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.timer_service_notification_title))
-            .setContentText(contentText)
+
+        val state = timerEngine.state.value
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(currentProjectName)
+            .setContentText(displayTime)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .setSilent(true)
-            .addAction(
+
+        if (state == TimerState.RUNNING) {
+            builder.addAction(
                 0,
-                getString(
-                    if (timerStatus == TimerStatus.PAUSED) {
-                        R.string.timer_service_action_resume
-                    } else {
-                        R.string.timer_service_action_pause
-                    }
-                ),
-                actionPendingIntent(
-                    if (timerStatus == TimerStatus.PAUSED) {
-                        ACTION_RESUME
-                    } else {
-                        ACTION_PAUSE
-                    }
-                )
+                "暂停",
+                buildActionPendingIntent(ACTION_PAUSE, 0)
             )
-            .addAction(
+        } else if (state == TimerState.PAUSED) {
+            builder.addAction(
                 0,
-                getString(R.string.timer_service_action_stop),
-                actionPendingIntent(ACTION_STOP)
+                "继续",
+                buildActionPendingIntent(ACTION_RESUME, 1)
             )
-            .addAction(
-                0,
-                getString(R.string.timer_service_action_cancel),
-                actionPendingIntent(ACTION_CANCEL)
-            )
-            .build()
+        }
+
+        builder.addAction(
+            0,
+            "停止",
+            buildActionPendingIntent(ACTION_STOP, 2)
+        )
+
+        return builder.build()
     }
 
-    private fun actionPendingIntent(action: String): PendingIntent {
+    private fun buildActionPendingIntent(action: String, requestCode: Int): PendingIntent {
         val intent = Intent(this, TimerForegroundService::class.java).apply {
             this.action = action
         }
         return PendingIntent.getService(
             this,
-            action.hashCode(),
+            requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -292,11 +298,23 @@ class TimerForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                getString(R.string.timer_service_channel_name),
+                "计时器",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
         }
     }
 
@@ -314,11 +332,5 @@ class TimerForegroundService : Service() {
         const val EXTRA_PREPARE_MS = "extra_prepare_ms"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "timer_channel"
-    }
-
-    private enum class TimerStatus {
-        IDLE,
-        RUNNING,
-        PAUSED
     }
 }
