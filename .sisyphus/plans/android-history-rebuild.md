@@ -327,7 +327,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew test`
 
-- [ ] 18. `feat(timer-ui): TimerScreen UI（模式/时长/间隔/控制）`
+- [x] 18. `feat(timer-ui): TimerScreen UI（模式/时长/间隔/控制）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/timer/TimerScreen.kt`

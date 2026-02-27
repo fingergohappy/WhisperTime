@@ -20,3 +20,4 @@
 - 2026-02-27: 任务 15 使用 `LazyColumn` 与 `collectAsState` 快速绑定 `ProjectListViewModel.projects`，并利用 M3 的 `Card` 与 `IconButton` 提供功能入口，注意 `Icons.Default.List` 已废弃，替换为 `Icons.AutoMirrored.Filled.List`。
 - 2026-02-27: 任务 16 使用 `NavType.StringType` 结合 `nullable = true` 处理 `project_edit?id={id}` 路由参数，手动解析空字符串与 ID，同时复用 `ProjectEditScreen` 实现新建与编辑逻辑（区分 `projectId` 是否为 null）。
 - 2026-02-27: 任务 17 将 `TimerEngine` 的 `state/elapsed/remaining/prepareRemaining` 通过 `combine + stateIn(viewModelScope)` 聚合为 `TimerUiState`，并继续对外暴露兼容的细粒度 `StateFlow`，可在不改 `TimerScreen` 的前提下完成接线。
+- 2026-02-27: 任务 18 发现 `TimerScreen` 源码已包含完整 UI 逻辑，仅需在 `WhisperTimeNavHost` 通过 `NavType.LongType` 解析参数并手动注入 `TimerScreen` 即可打通路由。
