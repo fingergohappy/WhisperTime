@@ -27,6 +27,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/**
+ * 计时器前台服务，负责在应用处于后台时维持计时逻辑、更新通知栏以及执行语音播报。
+ *
+ * 核心设计：
+ * 1. 生命周期：通过 startForeground 提升优先级，防止系统因内存压力回收计时协程。
+ * 2. 指令分发：通过 Intent Action (START/PAUSE/RESUME/STOP/CANCEL) 接收 UI 层或通知栏的控制指令。
+ * 3. 协程边界：使用 [serviceScope] 管理所有异步任务，在 onDestroy 时统一取消以防止内存泄漏。
+ * 4. 数据持久化：监听 [TimerEngine] 的完成信号（shouldAnnounce == -1L），确保计时结束时自动将记录存入 Room 数据库。
+ */
 class TimerForegroundService : Service() {
 
     private val tag = "TimerForegroundService"
@@ -34,18 +43,26 @@ class TimerForegroundService : Service() {
     private lateinit var timerEngine: TimerEngine
     private lateinit var timingRecordRepository: TimingRecordRepository
     private lateinit var voiceManager: VoiceAnnouncementManager
+
+    /**
+     * Service 专用的协程作用域，绑定到主线程并具备监督能力。
+     */
     private var serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // 各项异步任务的 Job 句柄，用于在启动新任务前取消旧任务
     private var notificationJob: Job? = null
     private var completionJob: Job? = null
     private var announcementJob: Job? = null
     private var startCountdownJob: Job? = null
     private var preparingSpeechJob: Job? = null
+
     private var currentProjectName: String = ""
     private var currentMode: TimerMode = TimerMode.COUNT_UP
 
     override fun onCreate() {
         super.onCreate()
         Log.d(tag, "onCreate()")
+        // 从 Application 容器中获取单例依赖
         val container = (application as WhisperTimeApplication).container
         timerEngine = container.timerEngine
         timingRecordRepository = container.timingRecordRepository
@@ -53,6 +70,9 @@ class TimerForegroundService : Service() {
         createNotificationChannel()
     }
 
+    /**
+     * 服务入口，处理通过 startService 传递的指令。
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(tag, "onStartCommand(): action=${intent?.action}")
         when (intent?.action) {
@@ -70,6 +90,7 @@ class TimerForegroundService : Service() {
             ACTION_STOP -> handleStop()
             ACTION_CANCEL -> handleCancel()
         }
+        // 使用 START_NOT_STICKY：若服务被系统杀死，不自动重启（避免无上下文的计时恢复）
         return START_NOT_STICKY
     }
 
@@ -77,6 +98,7 @@ class TimerForegroundService : Service() {
 
     override fun onDestroy() {
         Log.d(tag, "onDestroy()")
+        // 清理所有协程任务，防止服务销毁后的后台动作
         startCountdownJob?.cancel()
         preparingSpeechJob?.cancel()
         notificationJob?.cancel()
@@ -86,6 +108,13 @@ class TimerForegroundService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * 处理计时启动逻辑。
+     * 1. 解析 Intent 参数并构建 [TimerConfig]。
+     * 2. 启动前台通知。
+     * 3. 启动准备阶段的语音倒计时。
+     * 4. 驱动 [TimerEngine] 开始工作。
+     */
     private fun handleStart(intent: Intent) {
         startCountdownJob?.cancel()
         preparingSpeechJob?.cancel()
@@ -114,6 +143,7 @@ class TimerForegroundService : Service() {
             prepareTimeMs = prepareTimeMs
         )
 
+        // 立即进入前台，避免 Android 12+ 的前台服务启动限制
         startForeground(NOTIFICATION_ID, buildNotification())
         startNotificationUpdates()
         observeCompletion()
@@ -122,6 +152,7 @@ class TimerForegroundService : Service() {
         timerEngine.start(config)
         Log.d(tag, "handleStart(): engine started; state=${timerEngine.state.value}")
 
+        // 处理准备阶段的语音播报（3... 2... 1... 开始）
         val countdownSeconds = prepareTimeMs?.let { ((it + 999L) / 1000L).toInt() } ?: 0
         if (countdownSeconds <= 0) {
             voiceManager.announceQueued("开始")
@@ -135,6 +166,7 @@ class TimerForegroundService : Service() {
             timerEngine.prepareRemainingMs.collect { remainingMs ->
                 if (!isActive) return@collect
                 if (remainingMs == null) {
+                    // 准备结束，播报“开始”
                     if (!hasSpokenStart) {
                         delay(50L)
                         if (timerEngine.state.value == TimerState.RUNNING) {
@@ -145,6 +177,7 @@ class TimerForegroundService : Service() {
                     cancel()
                     return@collect
                 }
+                // 按秒取整，避免毫秒级抖动导致重复播报
                 val secondsLeft = ((remainingMs + 999L) / 1000L).toInt()
                 if (secondsLeft <= 0) return@collect
                 if (secondsLeft == lastSpokenSecond) return@collect
@@ -155,6 +188,12 @@ class TimerForegroundService : Service() {
         }
     }
 
+    /**
+     * 正常停止计时。
+     * 1. 停止播报。
+     * 2. 获取计时结果并写入数据库。
+     * 3. 移除前台状态并关闭服务。
+     */
     private fun handleStop() {
         Log.d(tag, "handleStop(): state=${timerEngine.state.value}")
         startCountdownJob?.cancel()
@@ -170,6 +209,7 @@ class TimerForegroundService : Service() {
             val result = timerEngine.stop()
             Log.d(tag, "handleStop(): engine stop result=$result")
             if (result != null) {
+                // 将内存中的计时结果转化为数据库实体并持久化
                 val record = TimingRecordEntity(
                     projectId = result.projectId,
                     startTime = result.startTimeEpoch,
@@ -184,6 +224,9 @@ class TimerForegroundService : Service() {
         }
     }
 
+    /**
+     * 取消计时（不保存记录）。
+     */
     private fun handleCancel() {
         Log.d(tag, "handleCancel(): state=${timerEngine.state.value}")
         startCountdownJob?.cancel()
@@ -197,20 +240,26 @@ class TimerForegroundService : Service() {
         stopSelf()
     }
 
+    /**
+     * 监听计时完成信号。
+     * 当 [TimerEngine] 发出 -1L 信号时，代表倒计时结束或强制完成。
+     */
     private fun observeCompletion() {
         completionJob?.cancel()
         completionJob = serviceScope.launch {
             timerEngine.shouldAnnounce.collect { signal ->
                 if (signal == -1L) {
                     Log.d(tag, "observeCompletion(): completion signal received")
-                }
-                if (signal == -1L) {
                     handleStop()
                 }
             }
         }
     }
 
+    /**
+     * 监听播报信号。
+     * 根据设置的语音间隔，播报已过去的时长或剩余时长。
+     */
     private fun observeAnnouncements() {
         announcementJob?.cancel()
         announcementJob = serviceScope.launch {
@@ -229,6 +278,9 @@ class TimerForegroundService : Service() {
         }
     }
 
+    /**
+     * 每秒刷新一次通知栏 UI，保持计时同步。
+     */
     private fun startNotificationUpdates() {
         notificationJob?.cancel()
         notificationJob = serviceScope.launch {

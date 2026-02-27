@@ -31,3 +31,4 @@
 - 2026-02-27: 任务 33 执行时发现计划中的 `git diff --exit-code tour..HEAD` 在当前分支名同为 `tour` 的场景下不再具备“外部基线对比”意义，已改用 `main` 作为稳定参考并在 decisions 记录。
 - 2026-02-27: 任务 34 仍无法执行 Kotlin LSP 诊断，注释添加后主要通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 验证代码结构与行为一致性。
 - 2026-02-27: 任务 35 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），代码注释添加后通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 确保无非预期逻辑改动，并配合 AST-Grep 校验结构稳定性。
+- 2026-02-27: 任务 37 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），服务与入口类注释补全后，通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 验证整体代码的功能稳定性与一致性。

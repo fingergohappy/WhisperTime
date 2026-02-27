@@ -536,7 +536,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 37. `docs(comment): 为 service/tts/入口类补齐中文注释（生命周期与边界）`
+- [x] 37. `docs(comment): 为 service/tts/入口类补齐中文注释（生命周期与边界）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/service/TimerForegroundService.kt`
