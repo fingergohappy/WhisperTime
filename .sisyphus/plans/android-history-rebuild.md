@@ -438,7 +438,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 
 ### Milestone J：端到端串联与对齐目标态（learn-08 前）
 
-- [ ] 29. `feat(nav): 完整串联所有路由与参数（projectId/recordId）`
+- [x] 29. `feat(nav): 完整串联所有路由与参数（projectId/recordId）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/navigation/WhisperTimeNavHost.kt`
