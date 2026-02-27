@@ -22,3 +22,4 @@
 - 2026-02-27: 任务 22 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 结构检查作为正确性验证。
 - 2026-02-27: 任务 23 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 结构检查作为正确性验证。
 - 2026-02-27: 任务 24 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），本次继续以 Gradle 构建/测试与 AST 结构校验替代。
+- 2026-02-27: 任务 25 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），服务层改动继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 路径校验兜底。

@@ -29,3 +29,5 @@
 - 2026-02-27: 任务 23 的 `VoiceAnnouncementManager` 使用内部 FIFO 队列 + `UtteranceProgressListener` 串行 drain，避免 `QUEUE_FLUSH` 导致重入打断与播报竞争。
 - 2026-02-27: 任务 23 额外暴露 `readinessState`（`NOT_INITIALIZED/INITIALIZING/READY/FAILED`）并保留 `isReady` 兼容布尔态，便于后续任务 24/25 分别处理初始化结果与服务调用分支。
 - 2026-02-27: 任务 24 在 `AppContainer` 内以 `init` 块执行 `voiceAnnouncementManager.init()`，可保持与 repository/timerEngine 同级暴露并确保应用启动后完成 TTS 管理器初始化。
+- 2026-02-27: 任务 25 在 `TimerForegroundService` 同时订阅 `prepareRemainingMs` 与 `shouldAnnounce`，可在不改 TimerEngine 事件模型的前提下补齐 prepare 倒计时播报与间隔播报。
+- 2026-02-27: prepare 倒计时播报使用 `ceil(remainingMs/1000)` 去抖，按秒变化入队 `VoiceAnnouncementManager.announce(...)`，避免 100ms tick 造成重复语音。

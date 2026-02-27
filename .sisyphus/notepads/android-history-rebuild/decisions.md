@@ -5,3 +5,5 @@
 - 2026-02-27: 任务 22 决定由 `TimerForegroundService` 独占消费 `TimerEngine.shouldAnnounce == -1L` 完成事件并写入 `TimingRecordRepository`，`TimerViewModel` 不再执行完成后落库，避免双写。
 - 2026-02-27: 任务 23 决定 `VoiceAnnouncementManager` 仅实现管理器内部能力（初始化状态、队列播报、`stopSpeaking`、`release`），不提前改动 `AppContainer` 与 `TimerForegroundService` 接线。
 - 2026-02-27: 任务 24 决定在 `AppContainer` 新增 `clear()` 仅负责 `voiceAnnouncementManager.release()`，并通过 `WhisperTimeApplication.onTerminate()` 挂入最小释放路径，不提前触碰 service 播报分支（任务 25）。
+- 2026-02-27: 任务 25 决定在 `TimerForegroundService` 内严格分流 `shouldAnnounce`：`-1L` 仅用于完成落库与收尾，`>0` 才触发间隔播报，避免回退任务 22 的单点落库语义。
+- 2026-02-27: 任务 25 决定在 `ACTION_STOP`/`ACTION_CANCEL`/`onDestroy` 统一调用 `voiceAnnouncementManager.stopSpeaking()`，并在新会话 `ACTION_START` 前先清空残留播报队列。

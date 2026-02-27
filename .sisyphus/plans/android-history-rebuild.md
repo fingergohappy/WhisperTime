@@ -399,7 +399,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 25. `feat(service): 服务中接入语音播报（prepare 倒计时 + 间隔播报 + stopSpeaking）`
+- [x] 25. `feat(service): 服务中接入语音播报（prepare 倒计时 + 间隔播报 + stopSpeaking）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/service/TimerForegroundService.kt`

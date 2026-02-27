@@ -16,6 +16,7 @@ import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.timer.TimerConfig
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
+import com.example.whispertime.tts.VoiceAnnouncementManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,19 +30,25 @@ class TimerForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var timerEngine: TimerEngine
     private lateinit var timingRecordRepository: TimingRecordRepository
+    private lateinit var voiceAnnouncementManager: VoiceAnnouncementManager
     private var completionJob: Job? = null
+    private var prepareAnnouncementJob: Job? = null
     private var activeProjectId: Long? = null
     private var activeDurationMs: Long? = null
+    private var activeTimerMode: TimerMode = TimerMode.COUNT_UP
     private var activeStartEpoch: Long = 0L
     private var completionRecorded: Boolean = false
+    private var lastPrepareAnnouncedSecond: Long? = null
 
     override fun onCreate() {
         super.onCreate()
         val container = (application as WhisperTimeApplication).container
         timerEngine = container.timerEngine
         timingRecordRepository = container.timingRecordRepository
+        voiceAnnouncementManager = container.voiceAnnouncementManager
         createNotificationChannel()
         observeTimerCompletion()
+        observePrepareAnnouncements()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -60,6 +67,8 @@ class TimerForegroundService : Service() {
 
     override fun onDestroy() {
         completionJob?.cancel()
+        prepareAnnouncementJob?.cancel()
+        voiceAnnouncementManager.stopSpeaking()
         serviceScope.cancel()
         clearActiveSession(resetCompletionFlag = true)
         super.onDestroy()
@@ -77,8 +86,10 @@ class TimerForegroundService : Service() {
         val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, -1L).takeIf { it > 0L }
         val prepareMs = intent.getLongExtra(EXTRA_PREPARE_MS, -1L).takeIf { it > 0L }
 
+        voiceAnnouncementManager.stopSpeaking()
         activeProjectId = projectId
         activeDurationMs = durationMs
+        activeTimerMode = timerMode
         activeStartEpoch = System.currentTimeMillis()
         completionRecorded = false
 
@@ -111,6 +122,7 @@ class TimerForegroundService : Service() {
     }
 
     private fun stopForegroundService(stopAction: Boolean) {
+        voiceAnnouncementManager.stopSpeaking()
         if (stopAction) {
             timerEngine.stop()
         } else {
@@ -126,6 +138,15 @@ class TimerForegroundService : Service() {
         completionJob?.cancel()
         completionJob = serviceScope.launch {
             timerEngine.shouldAnnounce.collect { signal ->
+                if (signal > 0L) {
+                    if (activeTimerMode == TimerMode.COUNTDOWN) {
+                        val remaining = (activeDurationMs ?: 0L) - signal
+                        voiceAnnouncementManager.announceRemaining(remaining.coerceAtLeast(0L))
+                    } else {
+                        voiceAnnouncementManager.announceElapsed(signal)
+                    }
+                    return@collect
+                }
                 if (signal != -1L || completionRecorded) return@collect
 
                 val projectId = activeProjectId ?: return@collect
@@ -149,6 +170,7 @@ class TimerForegroundService : Service() {
 
                 completionRecorded = true
                 clearActiveSession(resetCompletionFlag = false)
+                voiceAnnouncementManager.stopSpeaking()
                 timerStatus = TimerStatus.IDLE
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -156,10 +178,33 @@ class TimerForegroundService : Service() {
         }
     }
 
+    private fun observePrepareAnnouncements() {
+        prepareAnnouncementJob?.cancel()
+        prepareAnnouncementJob = serviceScope.launch {
+            timerEngine.prepareRemainingMs.collect { remainingMs ->
+                val remainingSecond = remainingMs
+                    ?.takeIf { it > 0L }
+                    ?.let { (it + 999L) / 1000L }
+
+                if (remainingSecond == null) {
+                    lastPrepareAnnouncedSecond = null
+                    return@collect
+                }
+
+                if (remainingSecond != lastPrepareAnnouncedSecond) {
+                    voiceAnnouncementManager.announce(remainingSecond.toString())
+                    lastPrepareAnnouncedSecond = remainingSecond
+                }
+            }
+        }
+    }
+
     private fun clearActiveSession(resetCompletionFlag: Boolean) {
         activeProjectId = null
         activeDurationMs = null
+        activeTimerMode = TimerMode.COUNT_UP
         activeStartEpoch = 0L
+        lastPrepareAnnouncedSecond = null
         if (resetCompletionFlag) {
             completionRecorded = false
         }
