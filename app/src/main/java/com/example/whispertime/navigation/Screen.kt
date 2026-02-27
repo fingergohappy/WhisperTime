@@ -11,4 +11,8 @@ sealed class Screen(val route: String) {
     object Records : Screen("records/{id}") {
         fun createRoute(id: Long) = "records/$id"
     }
+
+    object RecordEdit : Screen("record_edit?id={id}") {
+        fun createRoute(id: Long? = null) = "record_edit?id=${id ?: ""}"
+    }
 }

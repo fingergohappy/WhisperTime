@@ -418,7 +418,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 27. `feat(record): RecordListScreen 展示记录 + 跳转编辑`
+- [x] 27. `feat(record): RecordListScreen 展示记录 + 跳转编辑`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/record/RecordListScreen.kt`

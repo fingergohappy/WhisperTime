@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.whispertime.ui.project.ProjectEditScreen
 import com.example.whispertime.ui.project.ProjectListScreen
+import com.example.whispertime.ui.record.RecordListScreen
 import com.example.whispertime.ui.timer.TimerScreen
 
 @Composable
@@ -68,8 +69,26 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         composable(
             route = Screen.Records.route,
             arguments = listOf(navArgument("id") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getLong("id") ?: return@composable
+            RecordListScreen(
+                projectId = projectId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { recordId ->
+                    navController.navigate(Screen.RecordEdit.createRoute(recordId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.RecordEdit.route,
+            arguments = listOf(navArgument("id") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
         ) {
-            PlaceholderScreen("Records Screen (Future Task)")
+            PlaceholderScreen("Record Edit Screen (Future Task)")
         }
     }
 }
