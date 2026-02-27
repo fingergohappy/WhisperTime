@@ -350,7 +350,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 20. `feat(service): 接入 ACTION_START/PAUSE/RESUME/STOP/CANCEL 及 PendingIntent`
+- [x] 20. `feat(service): 接入 ACTION_START/PAUSE/RESUME/STOP/CANCEL 及 PendingIntent`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/service/TimerForegroundService.kt`

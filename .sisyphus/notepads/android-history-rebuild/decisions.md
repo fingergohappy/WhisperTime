@@ -1,2 +1,3 @@
 - 2026-02-27: 任务 18 发现 `TimerScreen` 源码已完整，决定仅在 `WhisperTimeNavHost` 接入路由并传递 `projectId`，无需额外修改 UI 组件即可满足需求。
 - 2026-02-27: 任务 19 决定在 Manifest 仅声明 `TimerForegroundService`（`exported=false`），前台服务权限与 `foregroundServiceType` 延后到任务 21 统一处理。
+- 2026-02-27: 任务 20 决定仅在 `TimerForegroundService` 增量接入 ACTION 分发与通知按钮，不提前引入任务 21 权限配置与任务 22 完成信号落库。

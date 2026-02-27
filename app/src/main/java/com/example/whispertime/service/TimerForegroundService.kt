@@ -1,5 +1,6 @@
 package com.example.whispertime.service
 
+import android.app.PendingIntent
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,21 +12,21 @@ import androidx.core.app.NotificationCompat
 import com.example.whispertime.R
 
 class TimerForegroundService : Service() {
-    private var foregroundNotification: Notification? = null
+    private var timerStatus: TimerStatus = TimerStatus.IDLE
+    private var currentProjectName: String = ""
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        foregroundNotification = buildNotification()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> startForegroundWithMinimumNotification()
+            ACTION_START -> handleStart(intent)
+            ACTION_PAUSE -> handlePause()
+            ACTION_RESUME -> handleResume()
             ACTION_STOP,
             ACTION_CANCEL -> stopForegroundService()
-            ACTION_PAUSE,
-            ACTION_RESUME,
             null -> Unit
         }
         return START_NOT_STICKY
@@ -37,26 +38,90 @@ class TimerForegroundService : Service() {
         super.onDestroy()
     }
 
-    private fun startForegroundWithMinimumNotification() {
-        val notification = foregroundNotification ?: buildNotification().also {
-            foregroundNotification = it
-        }
-        startForeground(NOTIFICATION_ID, notification)
+    private fun handleStart(intent: Intent) {
+        currentProjectName = intent.getStringExtra(EXTRA_PROJECT_NAME).orEmpty()
+        timerStatus = TimerStatus.RUNNING
+        startForeground(NOTIFICATION_ID, buildNotification())
+    }
+
+    private fun handlePause() {
+        if (timerStatus != TimerStatus.RUNNING) return
+        timerStatus = TimerStatus.PAUSED
+        updateNotification()
+    }
+
+    private fun handleResume() {
+        if (timerStatus != TimerStatus.PAUSED) return
+        timerStatus = TimerStatus.RUNNING
+        updateNotification()
     }
 
     private fun stopForegroundService() {
+        timerStatus = TimerStatus.IDLE
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
+    private fun updateNotification() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, buildNotification())
+    }
+
     private fun buildNotification(): Notification {
+        val contentTextRes = if (timerStatus == TimerStatus.PAUSED) {
+            R.string.timer_service_notification_text_paused
+        } else {
+            R.string.timer_service_notification_text_running
+        }
+        val contentText = getString(contentTextRes).let { base ->
+            if (currentProjectName.isBlank()) base else "$base: $currentProjectName"
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.timer_service_notification_title))
-            .setContentText(getString(R.string.timer_service_notification_text))
+            .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .setSilent(true)
+            .addAction(
+                0,
+                getString(
+                    if (timerStatus == TimerStatus.PAUSED) {
+                        R.string.timer_service_action_resume
+                    } else {
+                        R.string.timer_service_action_pause
+                    }
+                ),
+                actionPendingIntent(
+                    if (timerStatus == TimerStatus.PAUSED) {
+                        ACTION_RESUME
+                    } else {
+                        ACTION_PAUSE
+                    }
+                )
+            )
+            .addAction(
+                0,
+                getString(R.string.timer_service_action_stop),
+                actionPendingIntent(ACTION_STOP)
+            )
+            .addAction(
+                0,
+                getString(R.string.timer_service_action_cancel),
+                actionPendingIntent(ACTION_CANCEL)
+            )
             .build()
+    }
+
+    private fun actionPendingIntent(action: String): PendingIntent {
+        val intent = Intent(this, TimerForegroundService::class.java).apply {
+            this.action = action
+        }
+        return PendingIntent.getService(
+            this,
+            action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun createNotificationChannel() {
@@ -85,5 +150,11 @@ class TimerForegroundService : Service() {
         const val EXTRA_PREPARE_MS = "extra_prepare_ms"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "timer_channel"
+    }
+
+    private enum class TimerStatus {
+        IDLE,
+        RUNNING,
+        PAUSED
     }
 }
