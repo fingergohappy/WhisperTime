@@ -4,5 +4,5 @@ data class TimerResult(
     val projectId: Long,
     val startTimeEpoch: Long,
     val endTimeEpoch: Long,
-    val durationMs: Long
+    val durationMs: Long,
 )

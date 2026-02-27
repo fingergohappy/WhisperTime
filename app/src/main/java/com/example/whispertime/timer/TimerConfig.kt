@@ -6,10 +6,10 @@ data class TimerConfig(
     val mode: TimerMode,
     val durationMs: Long? = null,
     val voiceIntervalMs: Long? = null,
-    val prepareTimeMs: Long? = null
+    val prepareTimeMs: Long? = null,
 )
 
 enum class TimerMode {
     COUNT_UP,
-    COUNTDOWN
+    COUNTDOWN,
 }
