@@ -24,3 +24,5 @@
 - 2026-02-27: 任务 19 将 `TimerForegroundService` 收敛为最小骨架：保留 ACTION/EXTRA 常量以兼容任务 20 增量扩展，仅实现 channel 创建与最小前台通知生命周期。
 - 2026-02-27: 任务 20 在不引入 TimerEngine 落库/TTS 逻辑前，可先用 Service 内部 `TimerStatus` 做 ACTION_START/PAUSE/RESUME/STOP/CANCEL 分发与通知文案切换，并通过 `PendingIntent.getService` 暴露 pause/resume/stop/cancel 控制面。
 - 2026-02-27: 任务 21 在 Manifest 补齐 `FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE`、`POST_NOTIFICATIONS` 后，为 `TimerForegroundService` 设置 `android:foregroundServiceType="specialUse"` 并声明 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`，可与 Android 14 special-use 前台服务声明要求保持一致。
+- 2026-02-27: 任务 22 将 `TimerEngine.start/pause/resume/stop/cancel` 接线下沉到 `TimerForegroundService`，并在 service 侧常驻订阅 `shouldAnnounce`，只消费 `-1L` 完成信号触发落库。
+- 2026-02-27: 为避免同一轮计时重复写入，service 侧使用 `completionRecorded` 与会话字段清理；`onDestroy` 取消订阅协程并回收 scope，防止泄漏。

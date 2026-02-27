@@ -371,7 +371,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 22. `feat(service): 服务观察 TimerEngine 完成信号并落库 TimingRecord`
+- [x] 22. `feat(service): 服务观察 TimerEngine 完成信号并落库 TimingRecord`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/service/TimerForegroundService.kt`

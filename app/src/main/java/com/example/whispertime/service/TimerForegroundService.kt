@@ -10,14 +10,38 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.whispertime.R
+import com.example.whispertime.WhisperTimeApplication
+import com.example.whispertime.data.local.entity.TimingRecordEntity
+import com.example.whispertime.data.repository.TimingRecordRepository
+import com.example.whispertime.timer.TimerConfig
+import com.example.whispertime.timer.TimerEngine
+import com.example.whispertime.timer.TimerMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class TimerForegroundService : Service() {
     private var timerStatus: TimerStatus = TimerStatus.IDLE
     private var currentProjectName: String = ""
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private lateinit var timerEngine: TimerEngine
+    private lateinit var timingRecordRepository: TimingRecordRepository
+    private var completionJob: Job? = null
+    private var activeProjectId: Long? = null
+    private var activeDurationMs: Long? = null
+    private var activeStartEpoch: Long = 0L
+    private var completionRecorded: Boolean = false
 
     override fun onCreate() {
         super.onCreate()
+        val container = (application as WhisperTimeApplication).container
+        timerEngine = container.timerEngine
+        timingRecordRepository = container.timingRecordRepository
         createNotificationChannel()
+        observeTimerCompletion()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -25,8 +49,8 @@ class TimerForegroundService : Service() {
             ACTION_START -> handleStart(intent)
             ACTION_PAUSE -> handlePause()
             ACTION_RESUME -> handleResume()
-            ACTION_STOP,
-            ACTION_CANCEL -> stopForegroundService()
+            ACTION_STOP -> stopForegroundService(stopAction = true)
+            ACTION_CANCEL -> stopForegroundService(stopAction = false)
             null -> Unit
         }
         return START_NOT_STICKY
@@ -35,31 +59,110 @@ class TimerForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        completionJob?.cancel()
+        serviceScope.cancel()
+        clearActiveSession(resetCompletionFlag = true)
         super.onDestroy()
     }
 
     private fun handleStart(intent: Intent) {
+        val projectId = intent.getLongExtra(EXTRA_PROJECT_ID, -1L).takeIf { it > 0L } ?: return
         currentProjectName = intent.getStringExtra(EXTRA_PROJECT_NAME).orEmpty()
+        val timerMode = if (intent.getStringExtra(EXTRA_TIMER_MODE) == TimerMode.COUNTDOWN.name) {
+            TimerMode.COUNTDOWN
+        } else {
+            TimerMode.COUNT_UP
+        }
+        val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, -1L).takeIf { it > 0L }
+        val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, -1L).takeIf { it > 0L }
+        val prepareMs = intent.getLongExtra(EXTRA_PREPARE_MS, -1L).takeIf { it > 0L }
+
+        activeProjectId = projectId
+        activeDurationMs = durationMs
+        activeStartEpoch = System.currentTimeMillis()
+        completionRecorded = false
+
+        timerEngine.start(
+            TimerConfig(
+                projectId = projectId,
+                projectName = currentProjectName,
+                mode = timerMode,
+                durationMs = durationMs,
+                voiceIntervalMs = intervalMs,
+                prepareTimeMs = prepareMs
+            )
+        )
         timerStatus = TimerStatus.RUNNING
         startForeground(NOTIFICATION_ID, buildNotification())
     }
 
     private fun handlePause() {
         if (timerStatus != TimerStatus.RUNNING) return
+        timerEngine.pause()
         timerStatus = TimerStatus.PAUSED
         updateNotification()
     }
 
     private fun handleResume() {
         if (timerStatus != TimerStatus.PAUSED) return
+        timerEngine.resume()
         timerStatus = TimerStatus.RUNNING
         updateNotification()
     }
 
-    private fun stopForegroundService() {
+    private fun stopForegroundService(stopAction: Boolean) {
+        if (stopAction) {
+            timerEngine.stop()
+        } else {
+            timerEngine.cancel()
+        }
+        clearActiveSession(resetCompletionFlag = true)
         timerStatus = TimerStatus.IDLE
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun observeTimerCompletion() {
+        completionJob?.cancel()
+        completionJob = serviceScope.launch {
+            timerEngine.shouldAnnounce.collect { signal ->
+                if (signal != -1L || completionRecorded) return@collect
+
+                val projectId = activeProjectId ?: return@collect
+                val durationMs = activeDurationMs ?: return@collect
+                val endEpoch = System.currentTimeMillis()
+                val startEpoch = if (activeStartEpoch > 0L) {
+                    activeStartEpoch
+                } else {
+                    endEpoch - durationMs
+                }
+
+                timingRecordRepository.insert(
+                    TimingRecordEntity(
+                        projectId = projectId,
+                        startTime = startEpoch,
+                        endTime = endEpoch,
+                        durationMs = durationMs,
+                        createdAt = endEpoch
+                    )
+                )
+
+                completionRecorded = true
+                clearActiveSession(resetCompletionFlag = false)
+                timerStatus = TimerStatus.IDLE
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    private fun clearActiveSession(resetCompletionFlag: Boolean) {
+        activeProjectId = null
+        activeDurationMs = null
+        activeStartEpoch = 0L
+        if (resetCompletionFlag) {
+            completionRecorded = false
+        }
     }
 
     private fun updateNotification() {
