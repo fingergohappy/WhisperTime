@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.whispertime.ui.project.ProjectListScreen
 
 @Composable
 fun WhisperTimeNavHost(navController: NavHostController = rememberNavController()) {
@@ -15,7 +16,11 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         startDestination = Screen.ProjectList.route
     ) {
         composable(Screen.ProjectList.route) {
-            Text(text = "Project List Placeholder", modifier = Modifier)
+            ProjectListScreen(
+                onNavigateToTimer = {},
+                onNavigateToRecords = {},
+                onNavigateToEdit = {}
+            )
         }
     }
 }
