@@ -17,6 +17,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 记录编辑界面的 ViewModel
+ * 
+ * 负责解析和校验计时记录的时间（开始/结束）与时长，并处理它们之间的联动逻辑。
+ * 
+ * @param recordId 要编辑的记录 ID
+ * @param timingRecordRepository 计时记录数据仓库
+ */
 class RecordEditViewModel(
     private val recordId: Long,
     private val timingRecordRepository: TimingRecordRepository
@@ -24,10 +32,14 @@ class RecordEditViewModel(
 
     private var originalRecord: TimingRecordEntity? = null
 
+    // UI 状态：开始时间文本 (格式: yyyy-MM-dd HH:mm:ss)
     val startTimeText = MutableStateFlow("")
+    // UI 状态：结束时间文本 (格式: yyyy-MM-dd HH:mm:ss)
     val endTimeText = MutableStateFlow("")
+    // UI 状态：时长文本 (格式: mm:ss)
     val durationText = MutableStateFlow("")
 
+    // 操作结果事件流：保存是否成功
     private val _saveResult = MutableSharedFlow<Boolean>()
     val saveResult: SharedFlow<Boolean> = _saveResult.asSharedFlow()
 
@@ -35,6 +47,7 @@ class RecordEditViewModel(
 
     init {
         viewModelScope.launch {
+            // 加载原始记录并初始化 UI 文本
             val record = timingRecordRepository.getById(recordId).first()
             if (record != null) {
                 originalRecord = record
@@ -45,21 +58,33 @@ class RecordEditViewModel(
         }
     }
 
+    /**
+     * 当开始时间输入改变时触发
+     */
     fun onStartTimeChanged(text: String) {
         startTimeText.value = text
         updateDurationFromTimes()
     }
 
+    /**
+     * 当结束时间输入改变时触发
+     */
     fun onEndTimeChanged(text: String) {
         endTimeText.value = text
         updateDurationFromTimes()
     }
 
+    /**
+     * 当时长输入改变时触发
+     */
     fun onDurationChanged(text: String) {
         durationText.value = text
         updateEndTimeFromDuration()
     }
 
+    /**
+     * 根据开始和结束时间自动计算并更新时长
+     */
     private fun updateDurationFromTimes() {
         try {
             val start = dateTimeFormat.parse(startTimeText.value)?.time ?: return
@@ -69,10 +94,13 @@ class RecordEditViewModel(
                 durationText.value = formatDuration(duration)
             }
         } catch (e: Exception) {
-            // Ignore parsing errors during typing
+            // 忽略输入过程中的解析错误
         }
     }
 
+    /**
+     * 根据开始时间和时长自动计算并更新结束时间
+     */
     private fun updateEndTimeFromDuration() {
         try {
             val start = dateTimeFormat.parse(startTimeText.value)?.time ?: return
@@ -80,22 +108,23 @@ class RecordEditViewModel(
             val end = start + durationMs
             endTimeText.value = dateTimeFormat.format(Date(end))
         } catch (e: Exception) {
-            // Ignore parsing errors
+            // 忽略解析错误
         }
     }
 
+    /**
+     * 保存记录修改
+     */
     fun saveRecord() {
         viewModelScope.launch {
             val record = originalRecord ?: return@launch
             try {
                 val start = dateTimeFormat.parse(startTimeText.value)?.time ?: throw IllegalArgumentException("Invalid start time")
                 val end = dateTimeFormat.parse(endTimeText.value)?.time ?: throw IllegalArgumentException("Invalid end time")
-                val duration = parseDuration(durationText.value) ?: (end - start)
-
-                if (duration <= 0) throw IllegalArgumentException("Duration must be positive")
-
-                // Ensure consistency: prioritize start and end times
+                
+                // 确保数据一致性：以开始和结束时间计算的结果为准
                 val finalDuration = end - start
+                if (finalDuration <= 0) throw IllegalArgumentException("Duration must be positive")
                 
                 val updatedRecord = record.copy(
                     startTime = start,
@@ -112,6 +141,9 @@ class RecordEditViewModel(
         }
     }
 
+    /**
+     * 将毫秒数格式化为 mm:ss 字符串
+     */
     private fun formatDuration(ms: Long): String {
         val totalSeconds = ms / 1000
         val minutes = totalSeconds / 60
@@ -119,6 +151,9 @@ class RecordEditViewModel(
         return "%02d:%02d".format(minutes, seconds)
     }
 
+    /**
+     * 将 mm:ss 字符串解析为毫秒数
+     */
     private fun parseDuration(text: String): Long? {
         return try {
             val parts = text.split(":")
@@ -135,6 +170,9 @@ class RecordEditViewModel(
     }
 
     companion object {
+        /**
+         * ViewModel 工厂方法
+         */
         fun factory(application: Application, recordId: Long): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

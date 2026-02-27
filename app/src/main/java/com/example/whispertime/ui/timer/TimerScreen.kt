@@ -64,6 +64,10 @@ import com.example.whispertime.timer.TimerMode
 import com.example.whispertime.timer.TimerState
 import java.util.Locale
 
+/**
+ * 计时工作台屏幕
+ * 提供倒计时和正计时功能，支持自定义设置、准备时间以及实时语音播报反馈
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerScreen(
@@ -78,15 +82,15 @@ fun TimerScreen(
     )
 ) {
     val context = LocalContext.current
+    // 观察计时器的各项状态
     val timerState by viewModel.timerState.collectAsState()
     val elapsedMs by viewModel.elapsedMs.collectAsState()
     val remainingMs by viewModel.remainingMs.collectAsState()
     val projectName by viewModel.projectName.collectAsState()
     val config by viewModel.config.collectAsState()
-
     val prepareRemainingMs by viewModel.prepareRemainingMs.collectAsState()
 
-    // Permission handling for Notifications (Android 13+)
+    // 处理 Android 13+ 的通知权限请求
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* No-op */ }
@@ -103,7 +107,7 @@ fun TimerScreen(
         }
     }
 
-    // Local state for IDLE config override
+    // IDLE 状态下的本地配置暂存状态
     var isConfigExpanded by remember { mutableStateOf(false) }
     var selectedMode by remember { mutableStateOf(TimerMode.COUNT_UP) }
     var durationMinutes by remember { mutableStateOf("25") }
@@ -111,7 +115,7 @@ fun TimerScreen(
     var prepareSeconds by remember { mutableStateOf("") }
     var initialized by remember { mutableStateOf(false) }
 
-    // Initialize local state from config when loaded
+    // 当从项目加载配置时，初始化本地暂存状态
     LaunchedEffect(config) {
         if (!initialized && config != null) {
             selectedMode = config!!.mode
@@ -152,7 +156,7 @@ fun TimerScreen(
             verticalArrangement = Arrangement.Center
         ) {
             
-            // Mode Label
+            // 模式标签显示
             val currentMode = if (timerState == TimerState.IDLE) selectedMode else config?.mode ?: TimerMode.COUNT_UP
             Text(
                 text = if (currentMode == TimerMode.COUNTDOWN) "倒计时" else "正计时",
@@ -162,7 +166,7 @@ fun TimerScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Time Display
+            // 时间显示区域
             val timeToShow = if (currentMode == TimerMode.COUNTDOWN) {
                 remainingMs ?: (durationMinutes.toLongOrNull()?.times(60000) ?: 0L)
             } else {
@@ -174,7 +178,7 @@ fun TimerScreen(
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontSize = 80.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFeatureSettings = "tnum"
+                    fontFeatureSettings = "tnum" // 使用等宽数字，防止时间跳动
                 ),
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
@@ -182,8 +186,9 @@ fun TimerScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // IDLE State UI
-            if (timerState == TimerState.IDLE) {                // Collapsible Settings
+            // 根据不同的计时器状态渲染不同的 UI
+            if (timerState == TimerState.IDLE) {
+                // 空闲状态：展示可展开的配置项及开始按钮
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -214,7 +219,7 @@ fun TimerScreen(
                             exit = shrinkVertically() + fadeOut()
                         ) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
-                                // Mode Selection
+                                // 模式切换（正/倒计时）
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -235,7 +240,7 @@ fun TimerScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Duration Input (Countdown only)
+                                // 时长输入（仅倒计时模式）
                                 if (selectedMode == TimerMode.COUNTDOWN) {
                                     OutlinedTextField(
                                         value = durationMinutes,
@@ -247,7 +252,7 @@ fun TimerScreen(
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
 
-                                // Interval Input
+                                // 语音播报间隔设置
                                 OutlinedTextField(
                                     value = intervalSeconds,
                                     onValueChange = { if (it.all { char -> char.isDigit() }) intervalSeconds = it },
@@ -258,7 +263,7 @@ fun TimerScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Prepare Time Input
+                                // 准备时间设置
                                 OutlinedTextField(
                                     value = prepareSeconds,
                                     onValueChange = { if (it.all { char -> char.isDigit() }) prepareSeconds = it },
@@ -293,6 +298,7 @@ fun TimerScreen(
                     Text("开始", style = MaterialTheme.typography.titleLarge)
                 }
             } else if (timerState == TimerState.PREPARING) {
+                // 准备状态：展示倒计时准备 UI
                 Text(
                     text = "准备中...",
                     style = MaterialTheme.typography.titleLarge,
@@ -317,7 +323,7 @@ fun TimerScreen(
                     Text("取消")
                 }
             } else {
-                // RUNNING / PAUSED UI
+                // 运行中或暂停状态：展示操作按钮（暂停、继续、停止）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),

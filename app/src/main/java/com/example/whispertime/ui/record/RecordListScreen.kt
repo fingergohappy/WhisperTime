@@ -71,6 +71,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 历史记录列表屏幕
+ * 展示特定项目的所有计时历史，支持统计查看、左滑删除以及多选批量删除
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordListScreen(
@@ -84,15 +88,18 @@ fun RecordListScreen(
         factory = RecordListViewModel.factory(application, projectId)
     )
 
+    // 观察统计数据及列表状态
     val projectName by viewModel.projectName.collectAsState()
     val records by viewModel.records.collectAsState()
     val totalDurationMs by viewModel.totalDurationMs.collectAsState()
     val recordCount by viewModel.recordCount.collectAsState()
     val averageDurationMs by viewModel.averageDurationMs.collectAsState()
 
+    // 选择模式状态
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
     val selectedIds by viewModel.selectedRecordIds.collectAsState()
 
+    // 处理选择模式下的返回键行为
     BackHandler(enabled = isSelectionMode) {
         viewModel.exitSelectionMode()
     }
@@ -100,6 +107,7 @@ fun RecordListScreen(
     var recordToDelete by remember { mutableStateOf<TimingRecordEntity?>(null) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
+    // 单条记录删除确认
     if (recordToDelete != null) {
         AlertDialog(
             onDismissRequest = { recordToDelete = null },
@@ -123,6 +131,7 @@ fun RecordListScreen(
         )
     }
 
+    // 批量删除确认
     if (showBatchDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showBatchDeleteConfirm = false },
@@ -194,7 +203,7 @@ fun RecordListScreen(
             )
         }
     ) { innerPadding ->
-        // Tech-style background for the entire screen
+        // 科技感背景装饰
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -210,6 +219,7 @@ fun RecordListScreen(
                 .padding(innerPadding)
         ) {
             if (records.isEmpty()) {
+                // 空状态
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -228,7 +238,7 @@ fun RecordListScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Statistics Card - Tech Style
+                    // 统计卡片：展示累计时间、平均时间及记录条数
                     item {
                         OutlinedCard(
                             modifier = Modifier.fillMaxWidth(),
@@ -245,7 +255,7 @@ fun RecordListScreen(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                         ) {
                             Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                                // Left accent line
+                                // 左侧装饰条
                                 Box(
                                     modifier = Modifier
                                         .width(4.dp)
@@ -316,9 +326,11 @@ fun RecordListScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
+                    // 历史记录条目列表
                     items(records, key = { it.id }) { record ->
                         val dismissState = rememberSwipeToDismissBoxState()
                         LaunchedEffect(dismissState.currentValue) {
+                            // 处理左滑删除手势
                             if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
                                 recordToDelete = record
                                 dismissState.reset()
@@ -327,7 +339,7 @@ fun RecordListScreen(
 
                         SwipeToDismissBox(
                             state = dismissState,
-                            enableDismissFromEndToStart = !isSelectionMode,
+                            enableDismissFromEndToStart = !isSelectionMode, // 选择模式下禁用滑动删除
                             enableDismissFromStartToEnd = false,
                             backgroundContent = {
                                 DismissDeleteBackground(dismissState)
@@ -346,7 +358,7 @@ fun RecordListScreen(
                                 },
                                 onLongClick = {
                                     if (!isSelectionMode) {
-                                        viewModel.enterSelectionMode(record.id)
+                                        viewModel.enterSelectionMode(record.id) // 长按进入多选模式
                                     }
                                 }
                             )
@@ -358,6 +370,10 @@ fun RecordListScreen(
     }
 }
 
+/**
+ * 历史记录单项组件
+ * 展示开始时间、结束时间、日期以及总持续时长
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RecordItem(
@@ -378,7 +394,7 @@ fun RecordItem(
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val surfaceColor = MaterialTheme.colorScheme.surface
     
-    // Upgraded item background color to match the tech theme
+    // 根据选中状态平滑切换背景色
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) {
             primaryColor.copy(alpha = 0.25f)
@@ -416,7 +432,7 @@ fun RecordItem(
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
         ) {
-            // Left vertical tech accent bar
+            // 左侧渐变装饰条
             Box(
                 modifier = Modifier
                     .width(4.dp)
@@ -446,7 +462,7 @@ fun RecordItem(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    // Date & Duration
+                    // 第一行：日期与总时长
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -469,7 +485,6 @@ fun RecordItem(
                             )
                         }
                         
-                        // Tech styled duration
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -490,7 +505,7 @@ fun RecordItem(
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    // Start & End Time line
+                    // 第二行：具体时间段及连接线
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
@@ -505,7 +520,7 @@ fun RecordItem(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        // Techy connector line
+                        // 装饰连接线
                         Box(
                             modifier = Modifier
                                 .weight(1f)

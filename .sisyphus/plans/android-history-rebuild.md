@@ -526,7 +526,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew test`
 
-- [ ] 36. `docs(comment): 为 navigation/ui 包补齐中文注释（路由/事件/状态）`
+- [x] 36. `docs(comment): 为 navigation/ui 包补齐中文注释（路由/事件/状态）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/navigation/Screen.kt`

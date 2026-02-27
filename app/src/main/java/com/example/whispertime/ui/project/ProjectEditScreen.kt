@@ -35,6 +35,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/**
+ * 项目编辑/新建屏幕
+ * 提供项目名称、计时模式（正/倒计时）、默认时长、语音间隔及准备时间的配置
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectEditScreen(
@@ -47,12 +51,14 @@ fun ProjectEditScreen(
         )
     )
 ) {
+    // 绑定 ViewModel 中的表单状态
     val projectName by viewModel.projectName.collectAsState()
     val timerMode by viewModel.timerMode.collectAsState()
     val defaultDuration by viewModel.defaultDurationMinutes.collectAsState()
     val voiceInterval by viewModel.voiceIntervalSeconds.collectAsState()
     val prepareTime by viewModel.prepareTimeSeconds.collectAsState()
 
+    // 监听保存结果，成功后返回上一页
     LaunchedEffect(Unit) {
         viewModel.saveResult.collect { success ->
             if (success) {
@@ -80,6 +86,7 @@ fun ProjectEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 项目名称输入框
             OutlinedTextField(
                 value = projectName,
                 onValueChange = { viewModel.projectName.value = it },
@@ -88,6 +95,7 @@ fun ProjectEditScreen(
                 singleLine = true
             )
 
+            // 计时模式选择
             Column {
                 Text(
                     text = "计时模式",
@@ -115,6 +123,7 @@ fun ProjectEditScreen(
                 }
             }
 
+            // 默认时长输入（仅在倒计时模式下显示）
             if (timerMode == "COUNTDOWN") {
                 OutlinedTextField(
                     value = defaultDuration,
@@ -136,6 +145,7 @@ fun ProjectEditScreen(
                 )
             }
 
+            // 语音播报间隔配置（可选）
             OutlinedTextField(
                 value = voiceInterval,
                 onValueChange = {
@@ -150,6 +160,7 @@ fun ProjectEditScreen(
                 placeholder = { Text("可选") }
             )
 
+            // 计时前的准备时间（可选）
             OutlinedTextField(
                 value = prepareTime,
                 onValueChange = {
@@ -166,6 +177,7 @@ fun ProjectEditScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // 保存按钮，根据输入合法性决定是否可用
             Button(
                 onClick = { viewModel.saveProject() },
                 modifier = Modifier.fillMaxWidth(),

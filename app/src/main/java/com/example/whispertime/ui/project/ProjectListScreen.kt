@@ -49,6 +49,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.ProjectEntity
 
+/**
+ * 项目列表屏幕
+ * 展示所有计时项目，并提供创建、编辑、删除以及启动计时的入口
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectListScreen(
@@ -59,7 +63,9 @@ fun ProjectListScreen(
         factory = ProjectListViewModel.factory(LocalContext.current.applicationContext as Application)
     )
 ) {
+    // 观察项目列表状态
     val projects by viewModel.projects.collectAsState()
+    // 控制删除确认对话框的状态
     var projectToDelete by remember { mutableStateOf<ProjectEntity?>(null) }
     val app = LocalContext.current.applicationContext as WhisperTimeApplication
     val voiceManager = app.container.voiceAnnouncementManager
@@ -77,6 +83,7 @@ fun ProjectListScreen(
                     ) 
                 },
                 actions = {
+                    // 语音测试按钮：初始化并测试 TTS
                     TextButton(
                         onClick = {
                             voiceManager.init()
@@ -93,6 +100,7 @@ fun ProjectListScreen(
             )
         },
         floatingActionButton = {
+            // 悬浮按钮：创建新项目
             FloatingActionButton(
                 onClick = { onNavigateToEdit(null) },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -103,6 +111,7 @@ fun ProjectListScreen(
         }
     ) { paddingValues ->
         if (projects.isEmpty()) {
+            // 空状态展示
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -116,6 +125,7 @@ fun ProjectListScreen(
                 )
             }
         } else {
+            // 项目列表展示
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -136,6 +146,7 @@ fun ProjectListScreen(
         }
     }
 
+    // 删除确认对话框
     if (projectToDelete != null) {
         AlertDialog(
             onDismissRequest = { projectToDelete = null },
@@ -160,6 +171,10 @@ fun ProjectListScreen(
     }
 }
 
+/**
+ * 项目卡片组件
+ * 展示单个项目的基本信息（名称、模式、时长等）及操作按钮
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProjectCard(
@@ -173,8 +188,8 @@ fun ProjectCard(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onViewRecords,
-                onLongClick = onDelete
+                onClick = onViewRecords, // 点击卡片查看历史记录
+                onLongClick = onDelete   // 长按卡片触发删除
             ),
     ) {
         Column(
@@ -204,6 +219,7 @@ fun ProjectCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // 倒计时模式下展示默认时长
             if (project.timerMode == "COUNTDOWN" && project.defaultDurationMs != null) {
                 val minutes = project.defaultDurationMs / 60000
                 Text(
@@ -216,6 +232,7 @@ fun ProjectCard(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
+            // 操作按钮组
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -246,3 +263,4 @@ fun ProjectCard(
         }
     }
 }
+

@@ -14,23 +14,35 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
+/**
+ * 项目编辑 ViewModel
+ * 负责管理项目创建/修改表单的状态，并处理持久化逻辑
+ */
 class ProjectEditViewModel(
     private val projectId: Long?,
     private val projectRepository: ProjectRepository
 ) : ViewModel() {
 
+    /** 项目名称 */
     val projectName = MutableStateFlow("")
+    /** 计时模式：COUNT_UP 或 COUNTDOWN */
     val timerMode = MutableStateFlow("COUNT_UP")
+    /** 默认时长（分钟） */
     val defaultDurationMinutes = MutableStateFlow("")
+    /** 语音播报间隔（秒） */
     val voiceIntervalSeconds = MutableStateFlow("")
+    /** 准备时间（秒） */
     val prepareTimeSeconds = MutableStateFlow("")
     
+    /** 当前是否为编辑模式（而非创建新项目） */
     val isEditMode: Boolean = projectId != null
 
     private val _saveResult = MutableSharedFlow<Boolean>()
+    /** 保存操作的结果流 */
     val saveResult: SharedFlow<Boolean> = _saveResult.asSharedFlow()
 
     init {
+        // 如果是编辑模式，从仓库加载项目数据并初始化表单
         if (projectId != null) {
             viewModelScope.launch {
                 val project = projectRepository.getProjectById(projectId).firstOrNull()
@@ -45,6 +57,10 @@ class ProjectEditViewModel(
         }
     }
 
+    /**
+     * 保存项目
+     * 根据 isEditMode 执行更新或插入操作
+     */
     fun saveProject() {
         val name = projectName.value.trim()
         val mode = timerMode.value
@@ -54,6 +70,7 @@ class ProjectEditViewModel(
 
         if (name.isEmpty()) return
 
+        // 校验并转换倒计时时长
         val durationMs = if (mode == "COUNTDOWN") {
             val minutes = durationText.toLongOrNull()
             if (minutes == null || minutes <= 0) return
@@ -67,6 +84,7 @@ class ProjectEditViewModel(
 
         viewModelScope.launch {
             if (isEditMode && projectId != null) {
+                // 编辑模式：更新现有记录
                 val original = projectRepository.getProjectById(projectId).firstOrNull()
                 if (original != null) {
                     val updatedProject = original.copy(
@@ -80,6 +98,7 @@ class ProjectEditViewModel(
                     projectRepository.updateProject(updatedProject)
                 }
             } else {
+                // 新建模式：插入新记录
                 val newProject = ProjectEntity(
                     name = name,
                     timerMode = mode,
@@ -91,11 +110,13 @@ class ProjectEditViewModel(
                 )
                 projectRepository.insertProject(newProject)
             }
+            // 通知 UI 保存成功
             _saveResult.emit(true)
         }
     }
 
     companion object {
+        /** ViewModel 工厂方法，注入 Repository 及可选的项目 ID */
         fun factory(application: Application, projectId: Long?): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

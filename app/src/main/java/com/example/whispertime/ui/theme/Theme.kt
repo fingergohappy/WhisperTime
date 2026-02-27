@@ -11,28 +11,33 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+/**
+ * 深色配色方案
+ */
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
     tertiary = Pink80
 )
 
+/**
+ * 浅色配色方案
+ */
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
 )
 
+/**
+ * WhisperTime 全局主题配置
+ * 
+ * 负责根据系统设置及 Android 版本（支持 Android 12+ 动态色彩）自动切换配色方案。
+ * 
+ * @param darkTheme 是否使用深色主题，默认遵循系统设置
+ * @param dynamicColor 是否启用动态色彩（仅 Android 12+ 有效）
+ * @param content 主题作用域内的 UI 内容
+ */
 @Composable
 fun WhisperTimeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -41,6 +46,7 @@ fun WhisperTimeTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        // Android 12+ 支持从系统墙纸提取动态色彩
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

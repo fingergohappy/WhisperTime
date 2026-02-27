@@ -28,6 +28,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/**
+ * 历史记录编辑屏幕
+ * 允许用户手动修正计时的开始时间、结束时间或持续时长，支持字段间的自动联动更新
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordEditScreen(
@@ -40,10 +44,12 @@ fun RecordEditScreen(
         factory = RecordEditViewModel.factory(application, recordId)
     )
 
+    // 绑定 ViewModel 中的表单文本状态
     val startTime by viewModel.startTimeText.collectAsState()
     val endTime by viewModel.endTimeText.collectAsState()
     val duration by viewModel.durationText.collectAsState()
 
+    // 监听保存成功后的导航反馈
     LaunchedEffect(Unit) {
         viewModel.saveResult.collect { success ->
             if (success) {
@@ -74,6 +80,7 @@ fun RecordEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 开始时间输入框
             OutlinedTextField(
                 value = startTime,
                 onValueChange = viewModel::onStartTimeChanged,
@@ -83,6 +90,7 @@ fun RecordEditScreen(
                 singleLine = true
             )
 
+            // 结束时间输入框
             OutlinedTextField(
                 value = endTime,
                 onValueChange = viewModel::onEndTimeChanged,
@@ -92,6 +100,7 @@ fun RecordEditScreen(
                 singleLine = true
             )
 
+            // 持续时长输入框 (格式: MM:SS)
             OutlinedTextField(
                 value = duration,
                 onValueChange = viewModel::onDurationChanged,
@@ -101,6 +110,7 @@ fun RecordEditScreen(
                 singleLine = true
             )
 
+            // 联动更新提示
             Text(
                 text = "修改任一字段，其他字段可能自动联动更新。",
                 style = MaterialTheme.typography.bodySmall,
@@ -109,6 +119,7 @@ fun RecordEditScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 保存按钮
             Button(
                 onClick = viewModel::saveRecord,
                 modifier = Modifier.fillMaxWidth()
