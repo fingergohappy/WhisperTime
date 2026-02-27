@@ -337,7 +337,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 
 ### Milestone G：前台服务（learn-05）
 
-- [ ] 19. `feat(service): 添加 TimerForegroundService 骨架 + NotificationChannel`
+- [x] 19. `feat(service): 添加 TimerForegroundService 骨架 + NotificationChannel`
 
   **要做什么**：
   - 新增服务类，最小可编译

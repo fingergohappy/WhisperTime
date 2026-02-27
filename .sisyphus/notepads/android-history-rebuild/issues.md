@@ -1,0 +1,18 @@
+# Issues
+
+- 2026-02-27: `./gradlew :app:assembleDebug` 初次失败，缺少 Android SDK 路径配置（`local.properties` 不存在）。
+- 2026-02-27: 新增 `local.properties`（仅本地环境）后构建恢复成功。
+- 2026-02-27: Kotlin LSP 未安装（`kotlin-lsp` 缺失），本任务无法执行 LSP 诊断，改以 `assembleDebug` + AST 结构校验兜底。
+- 2026-02-27: 现有代码库包含后续任务的完整实现，需仔细甄别并剔除，仅保留当前任务所需的最小集。
+- 2026-02-27: 任务 5 的模型文件在仓库中已存在且被后续代码引用，需保持命名与字段稳定，避免提前改签名影响任务 6/7。
+- 2026-02-27: `TimerEngine` 被 `TimerViewModel/TimerForegroundService` 引用，任务 6 即使做最小实现也必须保留 `pause/resume/stop/cancel/shouldAnnounce` API 以保证主源码编译通过。
+- 2026-02-27: 任务 7 在补回自动停止后，`TimerForegroundService` 的完成分支会读取到引擎已重置状态，`stop()` 返回 `null` 属于当前阶段已知行为（记录持久化留待后续任务统一收敛）。
+- 2026-02-27: 任务 8 要求 `shouldAnnounce` 既用于完成信号（`-1L`）也用于间隔播报，需保持事件语义兼容，避免影响 `TimerForegroundService/TimerViewModel` 仅监听完成信号的逻辑。
+- 2026-02-27: 若仅在 `app/build.gradle.kts` 声明 `alias(libs.plugins.ksp)` 而根脚本未 `apply false` 暴露 catalog alias，构建阶段会报插件解析错误；任务 9 需同步在根 `build.gradle.kts` 增加 `alias(libs.plugins.ksp) apply false`。
+- 2026-02-27: Kotlin LSP 仍不可用，任务 10 继续以 Gradle 构建与测试作为主要正确性校验，LSP 诊断步骤记录为环境限制。
+- 2026-02-27: Kotlin LSP 依然不可用；任务 11 对数据层正确性的验证继续依赖 `./gradlew :app:assembleDebug` 与 `./gradlew test`。
+- 2026-02-27: 任务 12 仍受 Kotlin LSP 不可用影响，继续以 `./gradlew :app:assembleDebug` + `./gradlew test` 作为主验证手段，并补充 AST/Grep 结构检查。
+- 2026-02-27: 任务 13 仍受 Kotlin LSP 不可用影响，Repository 单测正确性以 `./gradlew test` 与 `./gradlew :app:assembleDebug` 结果作为最终判定。
+- 2026-02-27: 任务 14 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），继续以 `./gradlew :app:assembleDebug` 与 `./gradlew test` 作为正确性校验。
+- 2026-02-27: 任务 17 仍受 Kotlin LSP 不可用影响，继续使用 Gradle 构建/测试与 AST 结构检查验证 ViewModel Flow 接线正确性。
+- 2026-02-27: 任务 19 仍无法使用 Kotlin LSP，服务层正确性继续以 `assembleDebug` + `test` + AST/Grep 结构检查兜底。

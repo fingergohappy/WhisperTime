@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">WhisperTime</string>
+    <string name="timer_service_channel_name">Timer Service</string>
+    <string name="timer_service_notification_title">WhisperTime Timer</string>
+    <string name="timer_service_notification_text">Timer is running</string>
 </resources>
