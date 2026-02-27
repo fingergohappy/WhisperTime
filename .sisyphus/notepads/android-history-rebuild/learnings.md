@@ -18,3 +18,4 @@
 - 2026-02-27: 任务 13 在 `TimingRecordRepositoryTest` 继续沿用 `runTest + FakeTimingRecordDao`，补齐插入/查询/删除与统计路径后可稳定验证 Repository 基础行为，无需提前新增 `ProjectRepositoryTest`。
 - 2026-02-27: 任务 14 可直接复用 `ProjectRepository.getAllProjects()` 流并在 `ProjectListViewModel` 通过 `stateIn(viewModelScope)` 暴露 `StateFlow`，无需提前引入 UI 绑定逻辑即可满足列表数据接线目标。
 - 2026-02-27: 任务 15 使用 `LazyColumn` 与 `collectAsState` 快速绑定 `ProjectListViewModel.projects`，并利用 M3 的 `Card` 与 `IconButton` 提供功能入口，注意 `Icons.Default.List` 已废弃，替换为 `Icons.AutoMirrored.Filled.List`。
+- 2026-02-27: 任务 16 使用 `NavType.StringType` 结合 `nullable = true` 处理 `project_edit?id={id}` 路由参数，手动解析空字符串与 ID，同时复用 `ProjectEditScreen` 实现新建与编辑逻辑（区分 `projectId` 是否为 null）。

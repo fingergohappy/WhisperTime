@@ -36,9 +36,19 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         
         composable(
             route = Screen.ProjectEdit.route,
-            arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true })
-        ) {
-            PlaceholderScreen("Edit Project Screen (Task 16)")
+            arguments = listOf(navArgument("id") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val idString = backStackEntry.arguments?.getString("id")
+            val projectId = if (idString.isNullOrBlank()) null else idString.toLongOrNull()
+            
+            com.example.whispertime.ui.project.ProjectEditScreen(
+                projectId = projectId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(

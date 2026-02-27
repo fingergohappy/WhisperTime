@@ -306,7 +306,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 16. `feat(project): 添加 ProjectEditScreen + ViewModel（创建/编辑）`
+- [x] 16. `feat(project): 添加 ProjectEditScreen + ViewModel（创建/编辑）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/project/ProjectEditScreen.kt`
