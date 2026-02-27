@@ -25,3 +25,4 @@
 - 2026-02-27: 任务 25 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），服务层改动继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 路径校验兜底。
 - 2026-02-27: 任务 26 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），ViewModel 接线正确性继续以 `assembleDebug`、`test` 与 AST/Grep 路径校验兜底。
 - 2026-02-27: 任务 29 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），导航参数一致性继续通过 AST-Grep（`navArgument/getLong/getString`）与 Gradle 构建/测试结果验证。
+- 2026-02-27: 任务 30 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），本次继续以 Grep/AST-Grep 对 action/extra 与按钮调用链做结构校验，并以 `assembleDebug` + `test` 作为最终验证。

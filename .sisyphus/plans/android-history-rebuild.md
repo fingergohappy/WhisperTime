@@ -447,7 +447,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 30. `feat(timer-ui): TimerScreen 通过 Intent 启动/控制前台服务`
+- [x] 30. `feat(timer-ui): TimerScreen 通过 Intent 启动/控制前台服务`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/timer/TimerViewModel.kt`

@@ -10,6 +10,8 @@
 - 2026-02-27: 任务 26 决定保持 UI 与导航不变，仅在 `RecordListViewModel` 接入按项目过滤的 repository 流，并保留最小删除与统计入口供任务 27 复用。
 - 2026-02-27: 任务 29 决定统一采用语义化参数名（`projectId`、`recordId`），并在 `Screen.createRoute`、`navArgument`、`backStackEntry.arguments` 三处保持同名映射，避免 `id` 多义性。
 - 2026-02-27: 任务 29 决定保留 `ProjectEdit` 的可空参数以支持新建/编辑复用，同时将 `RecordEdit` 固化为必填 `recordId`，并对参数缺失场景执行 `popBackStack()` 保护而非崩溃。
+- 2026-02-27: 任务 30 决定采用“验证型收敛”，不改动 `TimerViewModel/TimerScreen/TimerForegroundService` 业务代码；当前 Intent 控制链（start/pause/resume/stop/cancel）与 action/extra 协议已满足目标。
+- 2026-02-27: 任务 30 决定仅更新计划勾选与 notepad 记录，避免提前触碰任务 31 的资源/主题对齐范围。
 
 ## Task 27: RecordListScreen and Navigation
 - **Navigation Type for RecordEdit**: Used `String` type for `id` argument in `RecordEdit` route to support potential nullable IDs (for create vs edit), although for this specific task we are navigating to *edit* an existing record, so the ID is available. However, keeping it consistent with  (which supports create/edit) is a good practice.
