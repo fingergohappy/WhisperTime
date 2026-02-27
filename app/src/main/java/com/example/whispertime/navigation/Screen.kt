@@ -8,33 +8,34 @@ sealed class Screen(val route: String) {
 
     /**
      * Create or edit a project.
-     * @param id Project ID (optional, null for creation)
+     * @param projectId Project ID (optional, null for creation)
      */
-    object ProjectEdit : Screen("project_edit?id={id}") {
-        fun createRoute(id: Long? = null) = "project_edit?id=${id ?: ""}"
+    object ProjectEdit : Screen("project_edit?projectId={projectId}") {
+        fun createRoute(projectId: Long? = null) =
+            projectId?.let { "project_edit?projectId=$it" } ?: "project_edit"
     }
 
     /**
      * Timer screen for a specific project.
-     * @param id Project ID
+     * @param projectId Project ID
      */
-    object Timer : Screen("timer/{id}") {
-        fun createRoute(id: Long) = "timer/$id"
+    object Timer : Screen("timer/{projectId}") {
+        fun createRoute(projectId: Long) = "timer/$projectId"
     }
 
     /**
      * History records list for a specific project.
-     * @param id Project ID
+     * @param projectId Project ID
      */
-    object Records : Screen("records/{id}") {
-        fun createRoute(id: Long) = "records/$id"
+    object Records : Screen("records/{projectId}") {
+        fun createRoute(projectId: Long) = "records/$projectId"
     }
 
     /**
      * Edit a specific timing record.
-     * @param id Record ID
+     * @param recordId Record ID
      */
-    object RecordEdit : Screen("record_edit?id={id}") {
-        fun createRoute(id: Long? = null) = "record_edit?id=${id ?: ""}"
+    object RecordEdit : Screen("record_edit/{recordId}") {
+        fun createRoute(recordId: Long) = "record_edit/$recordId"
     }
 }

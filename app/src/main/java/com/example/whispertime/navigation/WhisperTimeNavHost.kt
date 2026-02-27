@@ -41,14 +41,14 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         
         composable(
             route = Screen.ProjectEdit.route,
-            arguments = listOf(navArgument("id") {
+            arguments = listOf(navArgument("projectId") {
                 type = NavType.StringType
                 nullable = true
                 defaultValue = null
             })
         ) { backStackEntry ->
-            val idString = backStackEntry.arguments?.getString("id")
-            val projectId = if (idString.isNullOrBlank()) null else idString.toLongOrNull()
+            val projectIdString = backStackEntry.arguments?.getString("projectId")
+            val projectId = if (projectIdString.isNullOrBlank()) null else projectIdString.toLongOrNull()
             
             ProjectEditScreen(
                 projectId = projectId,
@@ -58,9 +58,16 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
 
         composable(
             route = Screen.Timer.route,
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
+            arguments = listOf(navArgument("projectId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val projectId = backStackEntry.arguments?.getLong("id") ?: return@composable
+            val arguments = backStackEntry.arguments
+            if (arguments == null || !arguments.containsKey("projectId")) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
+            val projectId = arguments.getLong("projectId")
             TimerScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() },
@@ -70,9 +77,16 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
 
         composable(
             route = Screen.Records.route,
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
+            arguments = listOf(navArgument("projectId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val projectId = backStackEntry.arguments?.getLong("id") ?: return@composable
+            val arguments = backStackEntry.arguments
+            if (arguments == null || !arguments.containsKey("projectId")) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
+            val projectId = arguments.getLong("projectId")
             RecordListScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() },
@@ -84,25 +98,23 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
 
         composable(
             route = Screen.RecordEdit.route,
-            arguments = listOf(navArgument("id") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
+            arguments = listOf(navArgument("recordId") {
+                type = NavType.LongType
             })
         ) { backStackEntry ->
-            val idString = backStackEntry.arguments?.getString("id")
-            val recordId = if (idString.isNullOrBlank()) null else idString.toLongOrNull()
-            
-            if (recordId != null) {
-                RecordEditScreen(
-                    recordId = recordId,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            } else {
+            val arguments = backStackEntry.arguments
+            if (arguments == null || !arguments.containsKey("recordId")) {
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
                 }
+                return@composable
             }
+
+            val recordId = arguments.getLong("recordId")
+            RecordEditScreen(
+                recordId = recordId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

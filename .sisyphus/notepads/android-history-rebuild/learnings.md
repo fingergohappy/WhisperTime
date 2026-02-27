@@ -34,3 +34,5 @@
 - 2026-02-27: 任务 26 在 `RecordListViewModel` 直接使用 `TimingRecordRepository` 的 `*ByProjectId` 查询入口，明确按 `projectId` 维度接线记录列表与统计流，避免误接全量数据流。
 - 2026-02-27: 任务 27 在 `RecordListScreen` 通过 `isSelectionMode` 和 `SwipeToDismissBox` 实现记录的多选/批量删除和滑动删除，完善了列表操作能力。
 - 2026-02-27: 任务 28 补全了 `RecordEditViewModel` 与 `RecordEditScreen`，并通过 `WhisperTimeNavHost` 挂载 `record_edit?id={id}` 路由。在测试侧，采用 `FakeTimingRecordDao` 替代 Mockito 验证 ViewModel 的数据加载、字段联动（时长/结束时间自动计算）与保存逻辑，规避了 Flow 单元测试的复杂性与 Robolectric 依赖。
+- 2026-02-27: 任务 29 将导航参数命名从通用 `id` 统一为语义化 `projectId/recordId`，并在 `Screen` 与 `WhisperTimeNavHost` 两侧同步，能显著降低跨页面链路的参数错配风险。
+- 2026-02-27: 对于可选编辑参数仅保留 `ProjectEdit` 的 nullable 查询参数；`RecordEdit` 改为必填 `recordId` 路径参数，形成“创建可空、编辑必填”的一致约束。
