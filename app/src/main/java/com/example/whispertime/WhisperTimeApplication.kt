@@ -11,4 +11,9 @@ class WhisperTimeApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
     }
+
+    override fun onTerminate() {
+        container.clear()
+        super.onTerminate()
+    }
 }

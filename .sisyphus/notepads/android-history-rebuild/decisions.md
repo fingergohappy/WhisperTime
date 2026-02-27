@@ -4,3 +4,4 @@
 - 2026-02-27: 任务 21 决定将 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` 的值落在 `strings.xml`（`timer_service_fgs_subtype`），避免在 Manifest 内硬编码，便于后续统一文案与配置管理。
 - 2026-02-27: 任务 22 决定由 `TimerForegroundService` 独占消费 `TimerEngine.shouldAnnounce == -1L` 完成事件并写入 `TimingRecordRepository`，`TimerViewModel` 不再执行完成后落库，避免双写。
 - 2026-02-27: 任务 23 决定 `VoiceAnnouncementManager` 仅实现管理器内部能力（初始化状态、队列播报、`stopSpeaking`、`release`），不提前改动 `AppContainer` 与 `TimerForegroundService` 接线。
+- 2026-02-27: 任务 24 决定在 `AppContainer` 新增 `clear()` 仅负责 `voiceAnnouncementManager.release()`，并通过 `WhisperTimeApplication.onTerminate()` 挂入最小释放路径，不提前触碰 service 播报分支（任务 25）。

@@ -391,7 +391,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 24. `feat(di): AppContainer 初始化 VoiceAnnouncementManager 并 init`
+- [x] 24. `feat(di): AppContainer 初始化 VoiceAnnouncementManager 并 init`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/di/AppContainer.kt`

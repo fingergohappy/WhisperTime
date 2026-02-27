@@ -28,3 +28,4 @@
 - 2026-02-27: 为避免同一轮计时重复写入，service 侧使用 `completionRecorded` 与会话字段清理；`onDestroy` 取消订阅协程并回收 scope，防止泄漏。
 - 2026-02-27: 任务 23 的 `VoiceAnnouncementManager` 使用内部 FIFO 队列 + `UtteranceProgressListener` 串行 drain，避免 `QUEUE_FLUSH` 导致重入打断与播报竞争。
 - 2026-02-27: 任务 23 额外暴露 `readinessState`（`NOT_INITIALIZED/INITIALIZING/READY/FAILED`）并保留 `isReady` 兼容布尔态，便于后续任务 24/25 分别处理初始化结果与服务调用分支。
+- 2026-02-27: 任务 24 在 `AppContainer` 内以 `init` 块执行 `voiceAnnouncementManager.init()`，可保持与 repository/timerEngine 同级暴露并确保应用启动后完成 TTS 管理器初始化。

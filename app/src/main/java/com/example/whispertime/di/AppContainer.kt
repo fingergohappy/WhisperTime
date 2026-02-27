@@ -17,4 +17,12 @@ class AppContainer(context: Context) {
 
     val timerEngine: TimerEngine = TimerEngine()
     val voiceAnnouncementManager: VoiceAnnouncementManager = VoiceAnnouncementManager(context)
+
+    init {
+        voiceAnnouncementManager.init()
+    }
+
+    fun clear() {
+        voiceAnnouncementManager.release()
+    }
 }

@@ -21,3 +21,4 @@
 - 2026-02-27: 任务 22 若保留 `TimerViewModel` 的完成信号落库逻辑会与 service 新增落库产生重复记录，需将完成落库职责收敛到 `TimerForegroundService` 单点处理。
 - 2026-02-27: 任务 22 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 结构检查作为正确性验证。
 - 2026-02-27: 任务 23 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），继续以 `./gradlew :app:assembleDebug`、`./gradlew test` 与 AST/Grep 结构检查作为正确性验证。
+- 2026-02-27: 任务 24 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），本次继续以 Gradle 构建/测试与 AST 结构校验替代。
