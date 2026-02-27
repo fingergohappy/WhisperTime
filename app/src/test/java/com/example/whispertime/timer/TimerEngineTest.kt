@@ -1,6 +1,7 @@
 package com.example.whispertime.timer
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
@@ -181,6 +182,50 @@ class TimerEngineTest {
         advanceTimeBy(200L)
         assertTrue(engine.elapsedMs.value > 0L)
 
+        engine.cancel()
+    }
+
+    @Test
+    fun voiceAnnouncement_triggersAtInterval() = runTest(UnconfinedTestDispatcher()) {
+        var fakeTime = 0L
+        val engine = TimerEngine(
+            timeSource = TimeSource { fakeTime },
+            coroutineScope = this
+        )
+        val signals = mutableListOf<Long>()
+        val collector = launch {
+            engine.shouldAnnounce.collect { signals += it }
+        }
+
+        engine.start(
+            TimerConfig(
+                projectId = 1L,
+                projectName = "Voice Interval",
+                mode = TimerMode.COUNT_UP,
+                voiceIntervalMs = 1000L
+            )
+        )
+
+        fakeTime = 900L
+        advanceTimeBy(200L)
+        assertTrue(signals.isEmpty())
+
+        fakeTime = 1000L
+        advanceTimeBy(200L)
+        assertEquals(listOf(1000L), signals)
+
+        advanceTimeBy(200L)
+        assertEquals(listOf(1000L), signals)
+
+        fakeTime = 2300L
+        advanceTimeBy(200L)
+        assertEquals(listOf(1000L, 2000L), signals)
+
+        fakeTime = 4100L
+        advanceTimeBy(200L)
+        assertEquals(listOf(1000L, 2000L, 3000L, 4000L), signals)
+
+        collector.cancel()
         engine.cancel()
     }
 }
