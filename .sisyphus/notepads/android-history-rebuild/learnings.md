@@ -42,3 +42,4 @@
 - 2026-02-27: 任务 33 在当前分支名与计划参考名重名（均为 `tour`）时，应优先选择稳定外部目标分支（本仓库为 `main`）执行严格差异校验，避免 `tour..HEAD` 退化为自比较。
 - 2026-02-27: 功能态最终对齐可先限定路径集（`build.gradle.kts`、`settings.gradle.kts`、`gradle/libs.versions.toml`、`app/**`）完成 hard parity，再保留 `.sisyphus/**` 作为过程文档差异。
 - 2026-02-27: 任务 31 资源对齐完成：backup_rules.xml/data_extraction_rules.xml 已存在且配置正确；strings.xml 补齐 timer_service_channel_name/timer_service_fgs_subtype；themes.xml/colors.xml 保持现状；所有 launcher 图标（12 个 webp + 2 个 xml）已完整。
+- 2026-02-27: 任务 34 补齐了 `timer` 包的中文注释（KDoc + 块注释），详细说明了 `TimerEngine` 的协程状态机逻辑、准备时间分发、计时循环与语音信号触发规则，同时对 `TimerConfig/State/Result` 模型做了语义说明。

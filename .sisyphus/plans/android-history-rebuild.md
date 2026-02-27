@@ -503,7 +503,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 - 对复杂逻辑块用块注释解释“为什么这样做”。
 - 不写复述型注释（例如 `// 设置 state` 这种无信息注释）。
 
-- [ ] 34. `docs(comment): 为 timer 包补齐中文注释（不改逻辑）`
+- [x] 34. `docs(comment): 为 timer 包补齐中文注释（不改逻辑）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/timer/TimerEngine.kt`

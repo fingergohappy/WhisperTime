@@ -29,3 +29,4 @@
 - 2026-02-27: 任务 31 发现 main 分支的 strings.xml 仅包含 app_name，但当前代码（任务 19-25 构建的 TimerForegroundService）需要 timer_service_* 字符串资源。为保持构建可用，任务 31 保留这些字符串而非严格对齐 main 的最小态。这是合理的，因为任务 31 的目标是"补齐资源对齐"而非"回退到最小态"。
 - 2026-02-27: 任务 32 发现服务启动参数的异常路径缺少显式日志，非法 `projectId`/倒计时缺少 `durationMs` 时会静默 return，已补充日志便于后续 task 33 严格对齐排查。
 - 2026-02-27: 任务 33 执行时发现计划中的 `git diff --exit-code tour..HEAD` 在当前分支名同为 `tour` 的场景下不再具备“外部基线对比”意义，已改用 `main` 作为稳定参考并在 decisions 记录。
+- 2026-02-27: 任务 34 仍无法执行 Kotlin LSP 诊断，注释添加后主要通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 验证代码结构与行为一致性。
