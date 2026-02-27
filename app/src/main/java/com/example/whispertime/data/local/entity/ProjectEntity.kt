@@ -9,9 +9,9 @@ data class ProjectEntity(
     val id: Long = 0,
     val name: String,
     val timerMode: String,
-    val defaultDurationMs: Long?,
-    val voiceIntervalMs: Long?,
-    val prepareTimeSeconds: Long?,
+    val defaultDurationMs: Long? = null,
+    val voiceIntervalMs: Long? = null,
+    val prepareTimeSeconds: Long? = null,
     val createdAt: Long,
     val updatedAt: Long
 )
