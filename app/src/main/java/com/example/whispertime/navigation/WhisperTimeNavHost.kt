@@ -1,12 +1,17 @@
 package com.example.whispertime.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.whispertime.ui.project.ProjectListScreen
 
 @Composable
@@ -17,10 +22,44 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
     ) {
         composable(Screen.ProjectList.route) {
             ProjectListScreen(
-                onNavigateToTimer = {},
-                onNavigateToRecords = {},
-                onNavigateToEdit = {}
+                onNavigateToTimer = { projectId ->
+                    navController.navigate(Screen.Timer.createRoute(projectId))
+                },
+                onNavigateToRecords = { projectId ->
+                    navController.navigate(Screen.Records.createRoute(projectId))
+                },
+                onNavigateToEdit = { projectId ->
+                    navController.navigate(Screen.ProjectEdit.createRoute(projectId))
+                }
             )
         }
+        
+        composable(
+            route = Screen.ProjectEdit.route,
+            arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true })
+        ) {
+            PlaceholderScreen("Edit Project Screen (Task 16)")
+        }
+
+        composable(
+            route = Screen.Timer.route,
+            arguments = listOf(navArgument("id") { type = NavType.LongType })
+        ) {
+            PlaceholderScreen("Timer Screen (Future Task)")
+        }
+
+        composable(
+            route = Screen.Records.route,
+            arguments = listOf(navArgument("id") { type = NavType.LongType })
+        ) {
+            PlaceholderScreen("Records Screen (Future Task)")
+        }
+    }
+}
+
+@Composable
+fun PlaceholderScreen(text: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = text)
     }
 }

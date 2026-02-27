@@ -1,0 +1,20 @@
+# Learnings
+
+- 2026-02-27: `sg` CLI 不在当前环境，使用内置 AST-Grep 工具完成 `setContent { ... }` 结构校验。
+- 2026-02-27: 当前仓库已有后续阶段源码，任务 1 仅回收入口与构建骨架，不提前引入 Application/Service 挂载。
+- 2026-02-27: 任务 2 创建了最小占位实现的 `AppContainer`，使用匿名对象实现 DAO 接口，返回空 Flow 与默认值，避免提前引入 Room 数据库初始化。
+- 2026-02-27: `WhisperTimeApplication` 保持简洁，仅在 `onCreate()` 中初始化 `AppContainer`，为后续业务依赖注入做准备。
+- 2026-02-27: 任务 3 仅保留导航骨架，`WhisperTimeNavHost` 当前只注册 `project_list` 占位路由，真实 `ProjectListScreen` 留到任务 4。
+- 2026-02-27: 任务 4 替换了现有 `ProjectListScreen` 的完整实现为静态占位页，避免提前引入 ViewModel 与 Room。
+- 2026-02-27: 即使 `ProjectListScreen` 需要 ViewModel，占位阶段也可以只传空 lambda，不做实际依赖注入。
+- 2026-02-27: 任务 5 仅保留 `TimerState`/`TimerConfig`/`TimerResult`/`TimerMode` 的类型定义，避免在模型阶段引入引擎逻辑。
+- 2026-02-27: 任务 6 的 `TimerEngineTest` 仅保留两条可重复的协程控时用例（count-up elapsed 增长、countdown remaining 下降），其余行为测试留给任务 7/8。
+- 2026-02-27: 任务 7 可直接复用初版 `TimerEngine` 的 prepare/pause/resume/stop 骨架，但必须移除语音间隔触发逻辑，仅保留倒计时归零完成信号（`-1L`）。
+- 2026-02-27: 任务 8 在 `TimerEngine` 内使用 `lastAnnouncedIntervalCount` 做间隔去重，按整倍数发出 `shouldAnnounce`，避免同一间隔重复触发。
+- 2026-02-27: 任务 9 仅做构建层最小改动时，可直接对齐 baseline：`app` 模块启用 `libs.plugins.ksp`、添加 `ksp(libs.androidx.room.compiler)`，并使用 `ksp { arg("room.schemaLocation", "$projectDir/schemas") }`。
+- 2026-02-27: 任务 10 在未引入 `WhisperTimeDatabase` 前，可在 `AppContainer` 提供基于 `MutableStateFlow` 的内存 `ProjectDao`，先打通 Project 的 Flow/CRUD 最小链路并保持后续 Room 接入可替换。
+- 2026-02-27: 任务 11 可沿用任务 10 的内存 DAO 策略：在 `AppContainer` 以 `MutableStateFlow<List<TimingRecordEntity>>` 实现 `TimingRecordDao`，即可在不引入 Database 的前提下打通 TimingRecord 的 Flow/CRUD/统计链路。
+- 2026-02-27: 任务 12 可直接复用已有 `WhisperTimeDatabase` 结构，关键是将 `AppContainer` 从内存 DAO 切换为 `WhisperTimeDatabase.getInstance(context)` 提供的真实 DAO，保持 Repository 对外构造不变。
+- 2026-02-27: 任务 13 在 `TimingRecordRepositoryTest` 继续沿用 `runTest + FakeTimingRecordDao`，补齐插入/查询/删除与统计路径后可稳定验证 Repository 基础行为，无需提前新增 `ProjectRepositoryTest`。
+- 2026-02-27: 任务 14 可直接复用 `ProjectRepository.getAllProjects()` 流并在 `ProjectListViewModel` 通过 `stateIn(viewModelScope)` 暴露 `StateFlow`，无需提前引入 UI 绑定逻辑即可满足列表数据接线目标。
+- 2026-02-27: 任务 15 使用 `LazyColumn` 与 `collectAsState` 快速绑定 `ProjectListViewModel.projects`，并利用 M3 的 `Card` 与 `IconButton` 提供功能入口，注意 `Icons.Default.List` 已废弃，替换为 `Icons.AutoMirrored.Filled.List`。
