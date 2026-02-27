@@ -31,3 +31,4 @@
 - 2026-02-27: 任务 24 在 `AppContainer` 内以 `init` 块执行 `voiceAnnouncementManager.init()`，可保持与 repository/timerEngine 同级暴露并确保应用启动后完成 TTS 管理器初始化。
 - 2026-02-27: 任务 25 在 `TimerForegroundService` 同时订阅 `prepareRemainingMs` 与 `shouldAnnounce`，可在不改 TimerEngine 事件模型的前提下补齐 prepare 倒计时播报与间隔播报。
 - 2026-02-27: prepare 倒计时播报使用 `ceil(remainingMs/1000)` 去抖，按秒变化入队 `VoiceAnnouncementManager.announce(...)`，避免 100ms tick 造成重复语音。
+- 2026-02-27: 任务 26 在 `RecordListViewModel` 直接使用 `TimingRecordRepository` 的 `*ByProjectId` 查询入口，明确按 `projectId` 维度接线记录列表与统计流，避免误接全量数据流。

@@ -7,3 +7,4 @@
 - 2026-02-27: 任务 24 决定在 `AppContainer` 新增 `clear()` 仅负责 `voiceAnnouncementManager.release()`，并通过 `WhisperTimeApplication.onTerminate()` 挂入最小释放路径，不提前触碰 service 播报分支（任务 25）。
 - 2026-02-27: 任务 25 决定在 `TimerForegroundService` 内严格分流 `shouldAnnounce`：`-1L` 仅用于完成落库与收尾，`>0` 才触发间隔播报，避免回退任务 22 的单点落库语义。
 - 2026-02-27: 任务 25 决定在 `ACTION_STOP`/`ACTION_CANCEL`/`onDestroy` 统一调用 `voiceAnnouncementManager.stopSpeaking()`，并在新会话 `ACTION_START` 前先清空残留播报队列。
+- 2026-02-27: 任务 26 决定保持 UI 与导航不变，仅在 `RecordListViewModel` 接入按项目过滤的 repository 流，并保留最小删除与统计入口供任务 27 复用。

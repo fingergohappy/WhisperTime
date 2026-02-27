@@ -410,7 +410,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 
 ### Milestone I：记录列表/编辑（CRUD）（learn-07 后半）
 
-- [ ] 26. `feat(record): RecordListViewModel 接入 TimingRecordRepository`
+- [x] 26. `feat(record): RecordListViewModel 接入 TimingRecordRepository`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/record/RecordListViewModel.kt`

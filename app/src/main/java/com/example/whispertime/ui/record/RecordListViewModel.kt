@@ -39,21 +39,24 @@ class RecordListViewModel(
             initialValue = ""
         )
 
-    val records: StateFlow<List<TimingRecordEntity>> = timingRecordRepository.getByProjectId(projectId)
+    val records: StateFlow<List<TimingRecordEntity>> =
+        timingRecordRepository.getRecordsByProjectId(projectId)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    val totalDurationMs: StateFlow<Long?> = timingRecordRepository.getTotalDuration(projectId)
+    val totalDurationMs: StateFlow<Long?> =
+        timingRecordRepository.getTotalDurationByProjectId(projectId)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val recordCount: StateFlow<Int> = timingRecordRepository.getRecordCount(projectId)
+    val recordCount: StateFlow<Int> =
+        timingRecordRepository.getRecordCountByProjectId(projectId)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
