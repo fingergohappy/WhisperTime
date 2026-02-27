@@ -457,7 +457,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 31. `chore(res): 补齐备份规则/strings/themes/colors 与图标资源对齐`
+- [x] 31. `chore(res): 补齐备份规则/strings/themes/colors 与图标资源对齐`
 
   **参考文件**：
   - `app/src/main/res/xml/backup_rules.xml`
@@ -468,9 +468,10 @@ type 建议：`chore|build|feat|refactor|test|docs`
   - `app/src/main/res/mipmap-*/ic_launcher*.webp`
 
   **验收**：
-  - `./gradlew :app:assembleDebug`
+  - `./gradlew :app:assembleDebug` ✓
+  - `./gradlew test` ✓
 
-- [ ] 32. `chore(polish): 对齐目标态的细节（日志/边界条件/小修正）`
+- [x] 32. `chore(polish): 对齐目标态的细节（日志/边界条件/小修正）`
 
   **要做什么**：
   - 以当前目标态代码为准，补齐遗漏字段/参数/默认值

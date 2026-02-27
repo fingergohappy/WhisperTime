@@ -38,3 +38,4 @@
 - 2026-02-27: 对于可选编辑参数仅保留 `ProjectEdit` 的 nullable 查询参数；`RecordEdit` 改为必填 `recordId` 路径参数，形成“创建可空、编辑必填”的一致约束。
 - 2026-02-27: 任务 30 校验结果显示 `TimerScreen` 按钮已完整走 `ViewModel -> TimerForegroundService Intent` 链路：start 使用 `ContextCompat.startForegroundService`，pause/resume/stop/cancel 通过 action Intent 控制运行中的服务。
 - 2026-02-27: 任务 30 的 start 参数已与服务协议对齐，`EXTRA_PROJECT_ID/NAME/TIMER_MODE/DURATION_MS/INTERVAL_MS/PREPARE_MS` 在 ViewModel 写入与 Service 读取保持一致，无需新增协议字段。
+- 2026-02-27: 任务 32 在 `TimerForegroundService.handleStart()` 增加“非法 projectId/COUNTDOWN 缺少 duration”的 guard + warning log，可在不影响合法流程行为的前提下提升边界可观测性。

@@ -16,6 +16,7 @@
 ## Task 27: RecordListScreen and Navigation
 - **Navigation Type for RecordEdit**: Used `String` type for `id` argument in `RecordEdit` route to support potential nullable IDs (for create vs edit), although for this specific task we are navigating to *edit* an existing record, so the ID is available. However, keeping it consistent with  (which supports create/edit) is a good practice.
 - **Placeholder for RecordEdit**: Created a placeholder for `RecordEditScreen` in `WhisperTimeNavHost` as the actual screen implementation is in Task 28.
+- 2026-02-27: 任务 32 决定仅做 behavior-preserving 的细节抛光（参数 guard/日志补齐），不引入任何 task 33 的 diff-sync 改动。
 
 ## Task 27: RecordListScreen and Navigation
 - **Navigation Type for RecordEdit**: Used `String` type for `id` argument in `RecordEdit` route to support potential nullable IDs (for create vs edit), although for this specific task we are navigating to *edit* an existing record, so the ID is available. However, keeping it consistent with `ProjectEdit` (which supports create/edit) is a good practice.

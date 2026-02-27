@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.whispertime.R
 import com.example.whispertime.WhisperTimeApplication
@@ -25,6 +26,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class TimerForegroundService : Service() {
+    private val tag = "TimerForegroundService"
     private var timerStatus: TimerStatus = TimerStatus.IDLE
     private var currentProjectName: String = ""
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -75,7 +77,10 @@ class TimerForegroundService : Service() {
     }
 
     private fun handleStart(intent: Intent) {
-        val projectId = intent.getLongExtra(EXTRA_PROJECT_ID, -1L).takeIf { it > 0L } ?: return
+        val projectId = intent.getLongExtra(EXTRA_PROJECT_ID, -1L).takeIf { it > 0L } ?: run {
+            Log.w(tag, "handleStart(): ignored because projectId is missing or invalid")
+            return
+        }
         currentProjectName = intent.getStringExtra(EXTRA_PROJECT_NAME).orEmpty()
         val timerMode = if (intent.getStringExtra(EXTRA_TIMER_MODE) == TimerMode.COUNTDOWN.name) {
             TimerMode.COUNTDOWN
@@ -85,6 +90,11 @@ class TimerForegroundService : Service() {
         val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, -1L).takeIf { it > 0L }
         val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, -1L).takeIf { it > 0L }
         val prepareMs = intent.getLongExtra(EXTRA_PREPARE_MS, -1L).takeIf { it > 0L }
+
+        if (timerMode == TimerMode.COUNTDOWN && durationMs == null) {
+            Log.w(tag, "handleStart(): ignored COUNTDOWN start because duration is missing or invalid")
+            return
+        }
 
         voiceAnnouncementManager.stopSpeaking()
         activeProjectId = projectId
@@ -149,8 +159,14 @@ class TimerForegroundService : Service() {
                 }
                 if (signal != -1L || completionRecorded) return@collect
 
-                val projectId = activeProjectId ?: return@collect
-                val durationMs = activeDurationMs ?: return@collect
+                val projectId = activeProjectId ?: run {
+                    Log.w(tag, "observeTimerCompletion(): skip persistence because activeProjectId is missing")
+                    return@collect
+                }
+                val durationMs = activeDurationMs ?: run {
+                    Log.w(tag, "observeTimerCompletion(): skip persistence because activeDurationMs is missing")
+                    return@collect
+                }
                 val endEpoch = System.currentTimeMillis()
                 val startEpoch = if (activeStartEpoch > 0L) {
                     activeStartEpoch

@@ -26,3 +26,5 @@
 - 2026-02-27: 任务 26 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），ViewModel 接线正确性继续以 `assembleDebug`、`test` 与 AST/Grep 路径校验兜底。
 - 2026-02-27: 任务 29 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），导航参数一致性继续通过 AST-Grep（`navArgument/getLong/getString`）与 Gradle 构建/测试结果验证。
 - 2026-02-27: 任务 30 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），本次继续以 Grep/AST-Grep 对 action/extra 与按钮调用链做结构校验，并以 `assembleDebug` + `test` 作为最终验证。
+- 2026-02-27: 任务 31 发现 main 分支的 strings.xml 仅包含 app_name，但当前代码（任务 19-25 构建的 TimerForegroundService）需要 timer_service_* 字符串资源。为保持构建可用，任务 31 保留这些字符串而非严格对齐 main 的最小态。这是合理的，因为任务 31 的目标是"补齐资源对齐"而非"回退到最小态"。
+- 2026-02-27: 任务 32 发现服务启动参数的异常路径缺少显式日志，非法 `projectId`/倒计时缺少 `durationMs` 时会静默 return，已补充日志便于后续 task 33 严格对齐排查。
