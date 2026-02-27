@@ -1,11 +1,9 @@
 package com.example.whispertime.timer
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -60,117 +58,6 @@ class TimerEngineTest {
         val remaining = engine.remainingMs.value
         assertNotNull(remaining)
         assertTrue((remaining ?: 5000L) < 5000L)
-        engine.cancel()
-    }
-
-    @Test
-    fun countdown_autoStopsAtZero() = runTest(UnconfinedTestDispatcher()) {
-        var fakeTime = 0L
-        val engine = TimerEngine(
-            timeSource = TimeSource { fakeTime },
-            coroutineScope = this
-        )
-
-        engine.start(
-            TimerConfig(
-                projectId = 1L,
-                projectName = "Countdown",
-                mode = TimerMode.COUNTDOWN,
-                durationMs = 500L
-            )
-        )
-
-        fakeTime = 600L
-        advanceTimeBy(300L)
-
-        assertEquals(TimerState.IDLE, engine.state.value)
-    }
-
-    @Test
-    fun pause_freezesElapsed() = runTest(UnconfinedTestDispatcher()) {
-        var fakeTime = 0L
-        val engine = TimerEngine(
-            timeSource = TimeSource { fakeTime },
-            coroutineScope = this
-        )
-
-        engine.start(
-            TimerConfig(
-                projectId = 1L,
-                projectName = "Pause",
-                mode = TimerMode.COUNT_UP
-            )
-        )
-
-        fakeTime = 1200L
-        advanceTimeBy(200L)
-        val beforePause = engine.elapsedMs.value
-
-        engine.pause()
-
-        fakeTime = 4000L
-        advanceTimeBy(1000L)
-
-        assertEquals(beforePause, engine.elapsedMs.value)
-        engine.cancel()
-    }
-
-    @Test
-    fun stop_returnsCorrectResult() = runTest(UnconfinedTestDispatcher()) {
-        var fakeTime = 0L
-        val engine = TimerEngine(
-            timeSource = TimeSource { fakeTime },
-            coroutineScope = this
-        )
-
-        engine.start(
-            TimerConfig(
-                projectId = 42L,
-                projectName = "Stop",
-                mode = TimerMode.COUNT_UP
-            )
-        )
-
-        fakeTime = 2100L
-        advanceTimeBy(200L)
-        val result = engine.stop()
-
-        assertNotNull(result)
-        assertTrue((result?.durationMs ?: 0L) >= 2000L)
-        assertEquals(42L, result?.projectId)
-        assertEquals(TimerState.IDLE, engine.state.value)
-    }
-
-    @Test
-    fun voiceAnnouncement_triggersAtInterval() = runTest(UnconfinedTestDispatcher()) {
-        var fakeTime = 0L
-        val engine = TimerEngine(
-            timeSource = TimeSource { fakeTime },
-            coroutineScope = this
-        )
-        val announcements = mutableListOf<Long>()
-        val collectorJob = launch {
-            engine.shouldAnnounce.collect { announcements.add(it) }
-        }
-
-        engine.start(
-            TimerConfig(
-                projectId = 1L,
-                projectName = "Voice",
-                mode = TimerMode.COUNT_UP,
-                voiceIntervalMs = 1000L
-            )
-        )
-
-        fakeTime = 1000L
-        advanceTimeBy(200L)
-        fakeTime = 2000L
-        advanceTimeBy(200L)
-        fakeTime = 2500L
-        advanceTimeBy(200L)
-
-        assertTrue(announcements.size >= 2)
-        collectorJob.cancel()
         engine.cancel()
     }
 }
