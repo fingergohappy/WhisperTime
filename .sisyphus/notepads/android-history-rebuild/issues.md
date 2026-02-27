@@ -17,3 +17,4 @@
 - 2026-02-27: 任务 17 仍受 Kotlin LSP 不可用影响，继续使用 Gradle 构建/测试与 AST 结构检查验证 ViewModel Flow 接线正确性。
 - 2026-02-27: 任务 19 仍无法使用 Kotlin LSP，服务层正确性继续以 `assembleDebug` + `test` + AST/Grep 结构检查兜底。
 - 2026-02-27: 任务 20 通知 action 需要兼容新 API 的 PendingIntent flag，使用 `FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE` 可避免 lint 提示并满足最小安全要求。
+- 2026-02-27: 任务 21 仍受 Kotlin LSP 不可用影响，Manifest/资源改动正确性继续以 `./gradlew :app:assembleDebug` 与 `./gradlew test` 结果作为主验证手段。

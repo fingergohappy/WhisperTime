@@ -8,4 +8,5 @@
     <string name="timer_service_action_resume">Resume</string>
     <string name="timer_service_action_stop">Stop</string>
     <string name="timer_service_action_cancel">Cancel</string>
+    <string name="timer_service_fgs_subtype">countdown_timer_active</string>
 </resources>

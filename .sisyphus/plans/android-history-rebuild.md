@@ -358,7 +358,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 21. `chore(manifest): 补齐前台服务权限与 foregroundServiceType 配置`
+- [x] 21. `chore(manifest): 补齐前台服务权限与 foregroundServiceType 配置`
 
   **要做什么**：
   - `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_SPECIAL_USE` / `POST_NOTIFICATIONS`

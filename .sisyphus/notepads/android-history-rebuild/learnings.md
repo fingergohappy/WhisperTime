@@ -23,3 +23,4 @@
 - 2026-02-27: 任务 18 发现 `TimerScreen` 源码已包含完整 UI 逻辑，仅需在 `WhisperTimeNavHost` 通过 `NavType.LongType` 解析参数并手动注入 `TimerScreen` 即可打通路由。
 - 2026-02-27: 任务 19 将 `TimerForegroundService` 收敛为最小骨架：保留 ACTION/EXTRA 常量以兼容任务 20 增量扩展，仅实现 channel 创建与最小前台通知生命周期。
 - 2026-02-27: 任务 20 在不引入 TimerEngine 落库/TTS 逻辑前，可先用 Service 内部 `TimerStatus` 做 ACTION_START/PAUSE/RESUME/STOP/CANCEL 分发与通知文案切换，并通过 `PendingIntent.getService` 暴露 pause/resume/stop/cancel 控制面。
+- 2026-02-27: 任务 21 在 Manifest 补齐 `FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE`、`POST_NOTIFICATIONS` 后，为 `TimerForegroundService` 设置 `android:foregroundServiceType="specialUse"` 并声明 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`，可与 Android 14 special-use 前台服务声明要求保持一致。
