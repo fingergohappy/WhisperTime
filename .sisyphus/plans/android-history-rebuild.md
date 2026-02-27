@@ -427,7 +427,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 28. `feat(record): RecordEditViewModel + Screen（手动修正时长/起止时间）`
+- [x] 28. `feat(record): RecordEditViewModel + Screen（手动修正时长/起止时间）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/record/RecordEditViewModel.kt`

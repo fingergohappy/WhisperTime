@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -14,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.whispertime.ui.project.ProjectEditScreen
 import com.example.whispertime.ui.project.ProjectListScreen
+import com.example.whispertime.ui.record.RecordEditScreen
 import com.example.whispertime.ui.record.RecordListScreen
 import com.example.whispertime.ui.timer.TimerScreen
 
@@ -87,8 +89,20 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 nullable = true
                 defaultValue = null
             })
-        ) {
-            PlaceholderScreen("Record Edit Screen (Future Task)")
+        ) { backStackEntry ->
+            val idString = backStackEntry.arguments?.getString("id")
+            val recordId = if (idString.isNullOrBlank()) null else idString.toLongOrNull()
+            
+            if (recordId != null) {
+                RecordEditScreen(
+                    recordId = recordId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+            }
         }
     }
 }
