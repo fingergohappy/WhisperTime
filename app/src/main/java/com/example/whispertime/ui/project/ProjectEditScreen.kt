@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * 项目编辑/新建屏幕
- * 提供项目名称、计时模式（正/倒计时）、默认时长、语音间隔及准备时间的配置
+ * 提供项目名称、计时模式（正计时/倒计时）、默认时长、语音间隔及准备时间的配置
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +127,7 @@ fun ProjectEditScreen(
             if (timerMode == "COUNTDOWN") {
                 OutlinedTextField(
                     value = defaultDuration,
-                    onValueChange = { 
+                    onValueChange = {
                         if (it.all { char -> char.isDigit() }) {
                             viewModel.defaultDurationMinutes.value = it
                         }

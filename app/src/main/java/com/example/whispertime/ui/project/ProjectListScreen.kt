@@ -73,14 +73,14 @@ fun ProjectListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         "WhisperTime",
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.5).sp
                         )
-                    ) 
+                    )
                 },
                 actions = {
                     // 语音测试按钮：初始化并测试 TTS
@@ -207,7 +207,7 @@ fun ProjectCard(
                     ),
                     modifier = Modifier.weight(1f)
                 )
-                
+
                 val modeLabel = if (project.timerMode == "COUNT_UP") "正计时" else "倒计时"
                 Text(
                     text = modeLabel,

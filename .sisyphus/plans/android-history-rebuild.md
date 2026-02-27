@@ -547,7 +547,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew :app:assembleDebug`
 
-- [ ] 38. `chore(comment): 注释一致性与格式清理（仅注释/空行）`
+- [x] 38. `chore(comment): 注释一致性与格式清理（仅注释/空行）`
 
   **要做什么**：
   - 统一术语（项目/计时/记录/倒计时/正计时）

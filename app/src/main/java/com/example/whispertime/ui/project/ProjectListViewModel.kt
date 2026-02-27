@@ -20,7 +20,7 @@ class ProjectListViewModel(
     private val projectRepository: ProjectRepository
 ) : ViewModel() {
 
-    /** 
+    /**
      * 所有项目的 StateFlow
      * 使用 WhileSubscribed(5000) 策略，在 UI 不可见 5 秒后停止订阅
      */

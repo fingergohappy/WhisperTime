@@ -155,7 +155,7 @@ fun TimerScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            
+
             // 模式标签显示
             val currentMode = if (timerState == TimerState.IDLE) selectedMode else config?.mode ?: TimerMode.COUNT_UP
             Text(
@@ -163,7 +163,7 @@ fun TimerScreen(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // 时间显示区域
@@ -172,7 +172,7 @@ fun TimerScreen(
             } else {
                 elapsedMs
             }
-            
+
             Text(
                 text = formatTime(timeToShow),
                 style = MaterialTheme.typography.displayLarge.copy(
@@ -336,9 +336,9 @@ fun TimerScreen(
                         ) {
                             Text("暂停")
                         }
-                        
+
                         Button(
-                            onClick = { 
+                            onClick = {
                                 viewModel.stopTimer()
                                 onNavigateToRecords(projectId)
                             },
@@ -356,9 +356,9 @@ fun TimerScreen(
                         ) {
                             Text("继续")
                         }
-                        
+
                         OutlinedButton(
-                            onClick = { 
+                            onClick = {
                                 viewModel.stopTimer()
                                 onNavigateToRecords(projectId)
                             },
@@ -368,11 +368,11 @@ fun TimerScreen(
                         }
                     }
                 }
-                
+
                 if (timerState == TimerState.PAUSED) {
                     Spacer(modifier = Modifier.height(16.dp))
                     TextButton(
-                        onClick = { 
+                        onClick = {
                             viewModel.cancelTimer()
                             onNavigateBack()
                         }

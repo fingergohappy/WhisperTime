@@ -32,3 +32,4 @@
 - 2026-02-27: 任务 34 仍无法执行 Kotlin LSP 诊断，注释添加后主要通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 验证代码结构与行为一致性。
 - 2026-02-27: 任务 35 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），代码注释添加后通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 确保无非预期逻辑改动，并配合 AST-Grep 校验结构稳定性。
 - 2026-02-27: 任务 37 仍无法执行 Kotlin LSP 诊断（`kotlin-lsp` 缺失），服务与入口类注释补全后，通过 `./gradlew :app:assembleDebug` 和 `./gradlew test` 验证整体代码的功能稳定性与一致性。
+- 2026-02-27: 任务 38 仍受 Kotlin LSP 缺失影响，无法执行全量 rename 或 AST-aware 替换。本次清理工作采用 `sed` 结合 `Grep` 手动确认术语一致性（如“时长”替代“持续时间”），并配合 `./gradlew :app:assembleDebug` 和 `./gradlew test` 确保清理过程未破坏现有代码的功能与结构。至此，Android 历史重建计划的所有任务均已完成。

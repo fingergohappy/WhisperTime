@@ -14,7 +14,7 @@ import androidx.room.PrimaryKey
  * @property projectId 关联的项目 ID（外键）。
  * @property startTime 开始时间戳。
  * @property endTime 结束时间戳。
- * @property durationMs 持续时间（毫秒）。
+ * @property durationMs 时长（毫秒）。
  * @property createdAt 记录创建时间戳。
  */
 @Entity(

@@ -31,9 +31,9 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * WhisperTime 全局主题配置
- * 
+ *
  * 负责根据系统设置及 Android 版本（支持 Android 12+ 动态色彩）自动切换配色方案。
- * 
+ *
  * @param darkTheme 是否使用深色主题，默认遵循系统设置
  * @param dynamicColor 是否启用动态色彩（仅 Android 12+ 有效）
  * @param content 主题作用域内的 UI 内容

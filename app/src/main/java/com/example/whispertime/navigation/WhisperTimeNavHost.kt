@@ -45,7 +45,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 }
             )
         }
-        
+
         // --- 项目编辑/新增 ---
         composable(
             route = Screen.ProjectEdit.ROUTE,
@@ -59,13 +59,13 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         ) { backStackEntry ->
             val projectIdStr = backStackEntry.arguments?.getString("projectId")
             val projectId = if (projectIdStr == "new" || projectIdStr == null) null else projectIdStr.toLongOrNull()
-            
+
             ProjectEditScreen(
                 projectId = projectId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         // --- 计时工作台 ---
         composable(
             route = Screen.Timer.ROUTE,
@@ -87,7 +87,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 }
             )
         }
-        
+
         // --- 历史记录列表 ---
         composable(
             route = Screen.RecordList.ROUTE,
@@ -106,7 +106,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 }
             )
         }
-        
+
         // --- 记录编辑 ---
         composable(
             route = Screen.RecordEdit.ROUTE,

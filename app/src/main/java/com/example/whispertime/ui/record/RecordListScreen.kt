@@ -262,7 +262,7 @@ fun RecordListScreen(
                                         .fillMaxHeight()
                                         .background(MaterialTheme.colorScheme.primary)
                                 )
-                                
+
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
@@ -281,7 +281,7 @@ fun RecordListScreen(
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    
+
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -389,11 +389,11 @@ fun RecordItem(
         bottomEnd = 16.dp,
         bottomStart = 4.dp
     )
-    
+
     val primaryColor = MaterialTheme.colorScheme.primary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val surfaceColor = MaterialTheme.colorScheme.surface
-    
+
     // 根据选中状态平滑切换背景色
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) {
@@ -446,7 +446,7 @@ fun RecordItem(
                         )
                     )
             )
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -484,7 +484,7 @@ fun RecordItem(
                                 letterSpacing = 1.sp
                             )
                         }
-                        
+
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -502,9 +502,9 @@ fun RecordItem(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     // 第二行：具体时间段及连接线
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -517,9 +517,9 @@ fun RecordItem(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Medium
                         )
-                        
+
                         Spacer(modifier = Modifier.width(8.dp))
-                        
+
                         // 装饰连接线
                         Box(
                             modifier = Modifier
@@ -534,9 +534,9 @@ fun RecordItem(
                                     )
                                 )
                         )
-                        
+
                         Spacer(modifier = Modifier.width(8.dp))
-                        
+
                         Text(
                             text = formatTimeOnly(record.endTime),
                             style = MaterialTheme.typography.bodyLarge,
@@ -560,7 +560,7 @@ private fun DismissDeleteBackground(dismissState: SwipeToDismissBoxState) {
     ) {
         return
     }
-    
+
     val shape = RoundedCornerShape(
         topStart = 16.dp,
         topEnd = 4.dp,

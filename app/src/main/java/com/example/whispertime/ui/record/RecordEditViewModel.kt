@@ -19,9 +19,9 @@ import java.util.Locale
 
 /**
  * 记录编辑界面的 ViewModel
- * 
+ *
  * 负责解析和校验计时记录的时间（开始/结束）与时长，并处理它们之间的联动逻辑。
- * 
+ *
  * @param recordId 要编辑的记录 ID
  * @param timingRecordRepository 计时记录数据仓库
  */
@@ -121,17 +121,17 @@ class RecordEditViewModel(
             try {
                 val start = dateTimeFormat.parse(startTimeText.value)?.time ?: throw IllegalArgumentException("Invalid start time")
                 val end = dateTimeFormat.parse(endTimeText.value)?.time ?: throw IllegalArgumentException("Invalid end time")
-                
+
                 // 确保数据一致性：以开始和结束时间计算的结果为准
                 val finalDuration = end - start
                 if (finalDuration <= 0) throw IllegalArgumentException("Duration must be positive")
-                
+
                 val updatedRecord = record.copy(
                     startTime = start,
                     endTime = end,
                     durationMs = finalDuration
                 )
-                
+
                 timingRecordRepository.update(updatedRecord)
                 _saveResult.emit(true)
             } catch (e: Exception) {

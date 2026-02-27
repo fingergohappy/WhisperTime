@@ -33,7 +33,7 @@ class ProjectEditViewModel(
     val voiceIntervalSeconds = MutableStateFlow("")
     /** 准备时间（秒） */
     val prepareTimeSeconds = MutableStateFlow("")
-    
+
     /** 当前是否为编辑模式（而非创建新项目） */
     val isEditMode: Boolean = projectId != null
 

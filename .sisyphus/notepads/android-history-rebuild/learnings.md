@@ -45,3 +45,4 @@
 - 2026-02-27: 任务 34 补齐了 `timer` 包的中文注释（KDoc + 块注释），详细说明了 `TimerEngine` 的协程状态机逻辑、准备时间分发、计时循环与语音信号触发规则，同时对 `TimerConfig/State/Result` 模型做了语义说明。
 - 2026-02-27: 任务 35 补齐了 `data/local` 和 `data/repository` 以及 `di` 包的中文注释。重点说明了 Room 数据库的单例模式与迁移策略、DAO 的流式查询与增删改查语义、Entity 的外键级联删除约束，以及 `TimingRecordRepository` 中复杂的起止时间与时长联动逻辑。`AppContainer` 作为手动 DI 容器，明确了其管理的各组件生命周期与依赖层次。
 - 2026-02-27: 任务 37 补齐了 `service`、`tts` 和应用入口类的中文注释。重点详述了 `TimerForegroundService` 的前台通知生命周期、Intent Action 指令分发机制、协程作用域边界以及计时完成后的自动落库逻辑；对 `VoiceAnnouncementManager` 的 TTS 异步初始化状态、缓冲队列排空语义及播报竞争策略做了明确定义；同时厘清了 `WhisperTimeApplication` 作为全局依赖容器和 `MainActivity` 作为单 Activity 架构宿主的职责分工。
+- 2026-02-27: 任务 38 完成了全量代码的注释一致性与格式清理。统一了“项目/计时/记录/倒计时/正计时/时长”等核心术语，修正了 `ProjectEntity` 中关于“正向/倒退/Tabata”的旧描述，移除了所有 Kotlin 文件中的尾随空格，并确保所有 KDoc 与块注释无冗余重复。至此，Android 历史重建计划圆满结束，代码库达到了功能对齐与高质量中文注释的目标。
