@@ -5,6 +5,18 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * 表示一条计时记录。
+ *
+ * 与 [ProjectEntity] 存在多对一关系。
+ *
+ * @property id 唯一标识。
+ * @property projectId 关联的项目 ID（外键）。
+ * @property startTime 开始时间戳。
+ * @property endTime 结束时间戳。
+ * @property durationMs 持续时间（毫秒）。
+ * @property createdAt 记录创建时间戳。
+ */
 @Entity(
     tableName = "timing_records",
     foreignKeys = [

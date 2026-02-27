@@ -514,7 +514,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
   **验收**：
   - `./gradlew test`
 
-- [ ] 35. `docs(comment): 为 data/di 包补齐中文注释（Room/Repository/DI）`
+- [x] 35. `docs(comment): 为 data/di 包补齐中文注释（Room/Repository/DI）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/data/local/WhisperTimeDatabase.kt`

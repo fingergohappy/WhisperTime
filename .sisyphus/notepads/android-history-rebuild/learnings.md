@@ -43,3 +43,4 @@
 - 2026-02-27: 功能态最终对齐可先限定路径集（`build.gradle.kts`、`settings.gradle.kts`、`gradle/libs.versions.toml`、`app/**`）完成 hard parity，再保留 `.sisyphus/**` 作为过程文档差异。
 - 2026-02-27: 任务 31 资源对齐完成：backup_rules.xml/data_extraction_rules.xml 已存在且配置正确；strings.xml 补齐 timer_service_channel_name/timer_service_fgs_subtype；themes.xml/colors.xml 保持现状；所有 launcher 图标（12 个 webp + 2 个 xml）已完整。
 - 2026-02-27: 任务 34 补齐了 `timer` 包的中文注释（KDoc + 块注释），详细说明了 `TimerEngine` 的协程状态机逻辑、准备时间分发、计时循环与语音信号触发规则，同时对 `TimerConfig/State/Result` 模型做了语义说明。
+- 2026-02-27: 任务 35 补齐了 `data/local` 和 `data/repository` 以及 `di` 包的中文注释。重点说明了 Room 数据库的单例模式与迁移策略、DAO 的流式查询与增删改查语义、Entity 的外键级联删除约束，以及 `TimingRecordRepository` 中复杂的起止时间与时长联动逻辑。`AppContainer` 作为手动 DI 容器，明确了其管理的各组件生命周期与依赖层次。
