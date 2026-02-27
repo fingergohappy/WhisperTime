@@ -11,7 +11,7 @@ import com.example.whispertime.data.local.entity.TimingRecordEntity
 
 @Database(
     entities = [ProjectEntity::class, TimingRecordEntity::class],
-    version = 2,
+    version = 1,
     exportSchema = false
 )
 abstract class WhisperTimeDatabase : RoomDatabase() {
