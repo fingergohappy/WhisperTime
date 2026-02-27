@@ -26,3 +26,5 @@
 - 2026-02-27: 任务 21 在 Manifest 补齐 `FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE`、`POST_NOTIFICATIONS` 后，为 `TimerForegroundService` 设置 `android:foregroundServiceType="specialUse"` 并声明 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`，可与 Android 14 special-use 前台服务声明要求保持一致。
 - 2026-02-27: 任务 22 将 `TimerEngine.start/pause/resume/stop/cancel` 接线下沉到 `TimerForegroundService`，并在 service 侧常驻订阅 `shouldAnnounce`，只消费 `-1L` 完成信号触发落库。
 - 2026-02-27: 为避免同一轮计时重复写入，service 侧使用 `completionRecorded` 与会话字段清理；`onDestroy` 取消订阅协程并回收 scope，防止泄漏。
+- 2026-02-27: 任务 23 的 `VoiceAnnouncementManager` 使用内部 FIFO 队列 + `UtteranceProgressListener` 串行 drain，避免 `QUEUE_FLUSH` 导致重入打断与播报竞争。
+- 2026-02-27: 任务 23 额外暴露 `readinessState`（`NOT_INITIALIZED/INITIALIZING/READY/FAILED`）并保留 `isReady` 兼容布尔态，便于后续任务 24/25 分别处理初始化结果与服务调用分支。

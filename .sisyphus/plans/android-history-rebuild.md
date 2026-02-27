@@ -383,7 +383,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 
 ### Milestone H：TTS（learn-06）
 
-- [ ] 23. `feat(tts): 引入 VoiceAnnouncementManager（队列 + 就绪状态）`
+- [x] 23. `feat(tts): 引入 VoiceAnnouncementManager（队列 + 就绪状态）`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/tts/VoiceAnnouncementManager.kt`
