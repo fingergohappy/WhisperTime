@@ -15,7 +15,7 @@ interface TimingRecordDao {
     @Query("SELECT * FROM timing_records WHERE projectId = :projectId ORDER BY startTime DESC")
     fun getByProjectId(projectId: Long): Flow<List<TimingRecordEntity>>
 
-    @Query("SELECT * FROM timing_records WHERE id = :id")
+    @Query("SELECT * FROM timing_records WHERE id = :id LIMIT 1")
     fun getById(id: Long): Flow<TimingRecordEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
