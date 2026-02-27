@@ -318,7 +318,7 @@ type 建议：`chore|build|feat|refactor|test|docs`
 
 ### Milestone F：计时 UI + ViewModel（连接 TimerEngine）（learn-03→learn-05 过渡）
 
-- [ ] 17. `feat(timer-ui): TimerViewModel 引入 TimerEngine 状态流`
+- [x] 17. `feat(timer-ui): TimerViewModel 引入 TimerEngine 状态流`
 
   **参考文件**：
   - `app/src/main/java/com/example/whispertime/ui/timer/TimerViewModel.kt`

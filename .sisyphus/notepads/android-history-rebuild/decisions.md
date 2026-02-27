@@ -19,3 +19,4 @@
 - 2026-02-27: 任务 14 决定在 `ProjectListViewModel` 保持最小 API：继续暴露 `projects: StateFlow<List<ProjectEntity>>`，并新增 `onDeleteProject` 作为事件入口，同时保留 `deleteProject` 兼容方法，避免提前改动 `ProjectListScreen`。
 - 2026-02-27: 任务 15 决定在 `ProjectListScreen` 接入真实 ViewModel 并展示 DB 数据，废弃 `Icons.Default.List`，不引入 `ProjectEditScreen` 真实导航（只做参数透传）。
 - 2026-02-27: 任务 16 采用单页面 `ProjectEditScreen` 兼容创建与编辑，ViewModel 根据 `projectId` 是否为 null 决定插入还是更新，且表单仅保存核心字段（name, timerMode, durations），不做高级校验。
+- 2026-02-27: 任务 17 决定在 `TimerViewModel` 新增 `TimerUiState` 聚合层，统一承接 `TimerEngine` 核心状态流，并保留 `timerState/elapsedMs/remainingMs/prepareRemainingMs` 兼容输出，避免提前触达任务 18 的 UI 交互重构。

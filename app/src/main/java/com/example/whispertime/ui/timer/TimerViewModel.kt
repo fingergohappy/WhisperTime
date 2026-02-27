@@ -19,10 +19,14 @@ import com.example.whispertime.timer.TimerMode
 import com.example.whispertime.timer.TimerResult
 import com.example.whispertime.timer.TimerState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class TimerViewModel(
@@ -33,16 +37,65 @@ class TimerViewModel(
     private val timerEngine: TimerEngine
 ) : ViewModel() {
 
+    data class TimerUiState(
+        val timerState: TimerState = TimerState.IDLE,
+        val elapsedMs: Long = 0L,
+        val remainingMs: Long? = null,
+        val prepareRemainingMs: Long? = null
+    )
+
     private val _projectName = MutableStateFlow("")
     val projectName: StateFlow<String> = _projectName.asStateFlow()
 
     private val _config = MutableStateFlow<TimerConfig?>(null)
     val config: StateFlow<TimerConfig?> = _config.asStateFlow()
 
-    val timerState: StateFlow<TimerState> = timerEngine.state
-    val elapsedMs: StateFlow<Long> = timerEngine.elapsedMs
-    val remainingMs: StateFlow<Long?> = timerEngine.remainingMs
-    val prepareRemainingMs: StateFlow<Long?> = timerEngine.prepareRemainingMs
+    val timerUiState: StateFlow<TimerUiState> = combine(
+        timerEngine.state,
+        timerEngine.elapsedMs,
+        timerEngine.remainingMs,
+        timerEngine.prepareRemainingMs
+    ) { state, elapsed, remaining, prepareRemaining ->
+        TimerUiState(
+            timerState = state,
+            elapsedMs = elapsed,
+            remainingMs = remaining,
+            prepareRemainingMs = prepareRemaining
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
+        initialValue = TimerUiState()
+    )
+
+    val timerState: StateFlow<TimerState> = timerUiState
+        .map { it.timerState }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
+            initialValue = TimerState.IDLE
+        )
+    val elapsedMs: StateFlow<Long> = timerUiState
+        .map { it.elapsedMs }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
+            initialValue = 0L
+        )
+    val remainingMs: StateFlow<Long?> = timerUiState
+        .map { it.remainingMs }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
+            initialValue = null
+        )
+    val prepareRemainingMs: StateFlow<Long?> = timerUiState
+        .map { it.prepareRemainingMs }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
+            initialValue = null
+        )
     val shouldAnnounce: SharedFlow<Long> = timerEngine.shouldAnnounce
 
     private var project: ProjectEntity? = null
