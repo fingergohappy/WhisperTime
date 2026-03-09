@@ -42,6 +42,7 @@ class TimerForegroundService : Service() {
     private var preparingSpeechJob: Job? = null
     private var currentProjectName: String = ""
     private var currentMode: TimerMode = TimerMode.COUNT_UP
+    private var autoCompletionInProgress = false
 
     override fun onCreate() {
         super.onCreate()
@@ -179,6 +180,7 @@ class TimerForegroundService : Service() {
                 )
                 timingRecordRepository.insert(record)
             }
+            autoCompletionInProgress = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -193,6 +195,7 @@ class TimerForegroundService : Service() {
         completionJob?.cancel()
         announcementJob?.cancel()
         timerEngine.cancel()
+        autoCompletionInProgress = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -204,7 +207,8 @@ class TimerForegroundService : Service() {
                 if (signal == -1L) {
                     Log.d(tag, "observeCompletion(): completion signal received")
                 }
-                if (signal == -1L) {
+                if (signal == -1L && !autoCompletionInProgress) {
+                    autoCompletionInProgress = true
                     handleStop()
                 }
             }

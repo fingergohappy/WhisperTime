@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ProjectDao {
 
-    @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM projects ORDER BY createdAt ASC, id ASC")
     fun getAll(): Flow<List<ProjectEntity>>
 
     @Query("SELECT * FROM projects WHERE id = :id")

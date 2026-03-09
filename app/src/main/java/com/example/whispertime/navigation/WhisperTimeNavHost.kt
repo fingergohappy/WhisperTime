@@ -1,5 +1,13 @@
 package com.example.whispertime.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -11,14 +19,35 @@ import com.example.whispertime.ui.project.ProjectEditScreen
 import com.example.whispertime.ui.project.ProjectListScreen
 import com.example.whispertime.ui.record.RecordEditScreen
 import com.example.whispertime.ui.record.RecordListScreen
+import com.example.whispertime.ui.timer.TimerHomeScreen
 import com.example.whispertime.ui.timer.TimerScreen
+
+private fun isForwardProjectSwitch(initialProjectId: Long?, targetProjectId: Long?): Boolean? {
+    if (initialProjectId == null || targetProjectId == null || initialProjectId == targetProjectId) {
+        return null
+    }
+    return targetProjectId > initialProjectId
+}
 
 @Composable
 fun WhisperTimeNavHost(navController: NavHostController = rememberNavController()) {
     NavHost(
         navController = navController,
-        startDestination = Screen.ProjectList.route
+        startDestination = Screen.TimerHome.route
     ) {
+        composable(Screen.TimerHome.route) {
+            TimerHomeScreen(
+                onNavigateToTimer = { projectId ->
+                    navController.navigate(Screen.Timer(projectId).route) {
+                        popUpTo(Screen.TimerHome.route) { inclusive = true }
+                    }
+                },
+                onNavigateToCreateProject = {
+                    navController.navigate(Screen.ProjectEdit(null).route)
+                }
+            )
+        }
+
         composable(Screen.ProjectList.route) {
             ProjectListScreen(
                 onNavigateToTimer = { projectId ->
@@ -63,16 +92,48 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 navArgument("projectId") {
                     type = NavType.LongType
                 }
-            )
+            ),
+            enterTransition = {
+                val initialProjectId = initialState.arguments?.getLong("projectId")
+                val targetProjectId = targetState.arguments?.getLong("projectId")
+                when (isForwardProjectSwitch(initialProjectId, targetProjectId)) {
+                    true -> slideInHorizontally(animationSpec = tween(240)) { it / 3 } + fadeIn(animationSpec = tween(220))
+                    false -> slideInHorizontally(animationSpec = tween(240)) { -it / 3 } + fadeIn(animationSpec = tween(220))
+                    null -> fadeIn(animationSpec = tween(180))
+                }
+            },
+            exitTransition = {
+                val initialProjectId = initialState.arguments?.getLong("projectId")
+                val targetProjectId = targetState.arguments?.getLong("projectId")
+                when (isForwardProjectSwitch(initialProjectId, targetProjectId)) {
+                    true -> slideOutHorizontally(animationSpec = tween(220)) { -it / 3 } + fadeOut(animationSpec = tween(180))
+                    false -> slideOutHorizontally(animationSpec = tween(220)) { it / 3 } + fadeOut(animationSpec = tween(180))
+                    null -> fadeOut(animationSpec = tween(120))
+                }
+            },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) { backStackEntry ->
             val projectId = backStackEntry.arguments?.getLong("projectId") ?: return@composable
             TimerScreen(
                 projectId = projectId,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Screen.TimerHome.route)
+                    }
+                },
                 onNavigateToRecords = { pid ->
                     navController.navigate(Screen.RecordList(pid).route) {
                         popUpTo(Screen.Timer.ROUTE) { inclusive = true }
                     }
+                },
+                onNavigateToTimer = { pid ->
+                    navController.navigate(Screen.Timer(pid).route) {
+                        popUpTo(Screen.Timer.ROUTE) { inclusive = true }
+                    }
+                },
+                onNavigateToCreateProject = {
+                    navController.navigate(Screen.ProjectEdit(null).route)
                 }
             )
         }

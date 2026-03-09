@@ -2,31 +2,25 @@ package com.example.whispertime.ui.record
 
 import android.app.Application
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
@@ -38,18 +32,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxState
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,14 +45,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whispertime.data.local.entity.TimingRecordEntity
 import java.text.SimpleDateFormat
@@ -112,7 +97,7 @@ fun RecordListScreen(
                         recordToDelete = null
                     }
                 ) {
-                    Text("删除")
+                    Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -159,14 +144,11 @@ fun RecordListScreen(
                 navigationIcon = {
                     if (isSelectionMode) {
                         IconButton(onClick = { viewModel.exitSelectionMode() }) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     } else {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     }
                 },
@@ -176,412 +158,178 @@ fun RecordListScreen(
                             onClick = { showBatchDeleteConfirm = true },
                             enabled = selectedIds.isNotEmpty()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = if (selectedIds.isNotEmpty()) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        // Tech-style background for the entire screen
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surface,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
                         )
                     )
                 )
                 .padding(innerPadding)
         ) {
             if (records.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = "NO DATA // 暂无记录",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace
                     )
                 }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Statistics Card - Tech Style
                     item {
-                        OutlinedCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(
-                                topStart = 4.dp,
-                                topEnd = 16.dp,
-                                bottomEnd = 4.dp,
-                                bottomStart = 16.dp
-                            ),
-                            colors = CardDefaults.outlinedCardColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                        ) {
-                            Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                                // Left accent line
-                                Box(
-                                    modifier = Modifier
-                                        .width(4.dp)
-                                        .fillMaxHeight()
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                                
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Info,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "DATA_METRICS // 统计",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontFamily = FontFamily.Monospace,
-                                            letterSpacing = 1.sp
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("TOTAL_TIME", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
-                                        Text(
-                                            text = formatDuration(totalDurationMs ?: 0),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("AVG_TIME", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
-                                        Text(
-                                            text = formatDuration(averageDurationMs ?: 0),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("RECORDS", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
-                                        Text(
-                                            text = recordCount.toString(),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
+                        StatsCard(
+                            totalDurationMs = totalDurationMs ?: 0L,
+                            averageDurationMs = averageDurationMs ?: 0L,
+                            recordCount = recordCount
+                        )
                     }
 
                     items(records, key = { it.id }) { record ->
-                        val dismissState = rememberSwipeToDismissBoxState()
-                        LaunchedEffect(dismissState.currentValue) {
-                            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                                recordToDelete = record
-                                dismissState.reset()
-                            }
-                        }
-
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            enableDismissFromEndToStart = !isSelectionMode,
-                            enableDismissFromStartToEnd = false,
-                            backgroundContent = {
-                                DismissDeleteBackground(dismissState)
-                            }
-                        ) {
-                            RecordItem(
-                                record = record,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = selectedIds.contains(record.id),
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        viewModel.toggleSelection(record.id)
-                                    } else {
-                                        onNavigateToEdit(record.id)
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        viewModel.enterSelectionMode(record.id)
-                                    }
+                        RecordItem(
+                            record = record,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedIds.contains(record.id),
+                            onClick = {
+                                if (isSelectionMode) {
+                                    viewModel.toggleSelection(record.id)
+                                } else {
+                                    onNavigateToEdit(record.id)
                                 }
-                            )
-                        }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    viewModel.enterSelectionMode(record.id)
+                                }
+                            },
+                            onDelete = { recordToDelete = record }
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatsCard(totalDurationMs: Long, averageDurationMs: Long, recordCount: Int) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "统计概览",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            StatRow(label = "总时长", value = formatDuration(totalDurationMs))
+            StatRow(label = "平均时长", value = formatDuration(averageDurationMs))
+            StatRow(label = "记录数", value = recordCount.toString())
+        }
+    }
+}
+
+@Composable
+private fun StatRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun RecordItem(
+private fun RecordItem(
     record: TimingRecordEntity,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    val shape = RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 4.dp,
-        bottomEnd = 16.dp,
-        bottomStart = 4.dp
-    )
-    
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    
-    // Upgraded item background color to match the tech theme
-    val containerColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            primaryColor.copy(alpha = 0.25f)
-        } else {
-            surfaceColor.copy(alpha = 0.85f)
-        },
-        label = "record_item_container"
-    )
-
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            primaryColor
-        } else {
-            primaryColor.copy(alpha = 0.2f)
-        },
-        label = "record_item_border"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        shape = shape,
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        border = BorderStroke(1.dp, borderColor)
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            } else {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+            }
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left vertical tech accent bar
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                primaryColor,
-                                tertiaryColor
-                            )
-                        )
-                    )
-            )
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isSelectionMode) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
+            if (isSelectionMode) {
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                Spacer(modifier = Modifier.size(8.dp))
+            }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    // Date & Duration
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(if (isSelected) tertiaryColor else primaryColor)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = formatDateOnly(record.startTime),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                        
-                        // Tech styled duration
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = tertiaryColor
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = formatDuration(record.durationMs),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = tertiaryColor,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Start & End Time line
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = formatTimeOnly(record.startTime),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Medium
-                        )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        // Techy connector line
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(1.dp)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            primaryColor.copy(alpha = 0.5f),
-                                            tertiaryColor.copy(alpha = 0.1f)
-                                        )
-                                    )
-                                )
-                        )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        Text(
-                            text = formatTimeOnly(record.endTime),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = formatDuration(record.durationMs),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "${formatDate(record.startTime)} ${formatClock(record.startTime)} → ${formatClock(record.endTime)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (!isSelectionMode) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
                 }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DismissDeleteBackground(dismissState: SwipeToDismissBoxState) {
-    // Only show the background when actually swiping
-    if (
-        dismissState.targetValue == SwipeToDismissBoxValue.Settled &&
-        dismissState.currentValue == SwipeToDismissBoxValue.Settled
-    ) {
-        return
-    }
-    
-    val shape = RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 4.dp,
-        bottomEnd = 16.dp,
-        bottomStart = 4.dp
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(shape)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.2f),
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                    )
-                )
-            )
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.CenterEnd
-    ) {
-        Text(
-            text = "DELETE //",
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.error,
-            letterSpacing = 2.sp,
-            style = MaterialTheme.typography.labelLarge
-        )
-    }
-}
-
-// Utility functions
-fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
@@ -590,17 +338,10 @@ fun formatDuration(ms: Long): String {
     else "${seconds}s"
 }
 
-fun formatDateTime(epochMs: Long): String {
-    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    return sdf.format(Date(epochMs))
+private fun formatDate(epochMs: Long): String {
+    return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(epochMs))
 }
 
-fun formatTimeOnly(epochMs: Long): String {
-    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    return sdf.format(Date(epochMs))
-}
-
-fun formatDateOnly(epochMs: Long): String {
-    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    return sdf.format(Date(epochMs))
+private fun formatClock(epochMs: Long): String {
+    return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(epochMs))
 }

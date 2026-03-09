@@ -10,20 +10,24 @@ import androidx.lifecycle.viewModelScope
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.ProjectEntity
 import com.example.whispertime.data.local.entity.TimingRecordEntity
+import com.example.whispertime.data.repository.EditedField
 import com.example.whispertime.data.repository.ProjectRepository
 import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.service.TimerForegroundService
 import com.example.whispertime.timer.TimerConfig
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
-import com.example.whispertime.timer.TimerResult
 import com.example.whispertime.timer.TimerState
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class TimerViewModel(
     private val projectId: Long,
@@ -32,6 +36,11 @@ class TimerViewModel(
     private val timingRecordRepository: TimingRecordRepository,
     private val timerEngine: TimerEngine
 ) : ViewModel() {
+
+    data class WeeklyStat(
+        val label: String,
+        val durationMs: Long
+    )
 
     private val _projectName = MutableStateFlow("")
     val projectName: StateFlow<String> = _projectName.asStateFlow()
@@ -43,14 +52,54 @@ class TimerViewModel(
     val elapsedMs: StateFlow<Long> = timerEngine.elapsedMs
     val remainingMs: StateFlow<Long?> = timerEngine.remainingMs
     val prepareRemainingMs: StateFlow<Long?> = timerEngine.prepareRemainingMs
-    val shouldAnnounce: SharedFlow<Long> = timerEngine.shouldAnnounce
 
     private var project: ProjectEntity? = null
-    private var activeTimerConfig: TimerConfig? = null
-    private var activeStartEpoch: Long = 0L
+    val records: StateFlow<List<TimingRecordEntity>> = timingRecordRepository.getByProjectId(projectId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val allProjects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val totalDurationMs: StateFlow<Long> = timingRecordRepository.getTotalDuration(projectId)
+        .map { it ?: 0L }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0L
+        )
+
+    val recordCount: StateFlow<Int> = timingRecordRepository.getRecordCount(projectId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
+    val averageDurationMs: StateFlow<Long> = combine(totalDurationMs, recordCount) { total, count ->
+        if (count > 0) total / count else 0L
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0L
+    )
+
+    val weeklyStats: StateFlow<List<WeeklyStat>> = records
+        .map { buildWeeklyStats(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     init {
-        observeCompletionAnnouncements()
         loadProject()
     }
 
@@ -81,8 +130,6 @@ class TimerViewModel(
         )
 
         _config.value = timerConfig
-        activeTimerConfig = timerConfig
-        activeStartEpoch = System.currentTimeMillis()
 
         val intent = Intent(appContext, TimerForegroundService::class.java).apply {
             action = TimerForegroundService.ACTION_START
@@ -115,7 +162,6 @@ class TimerViewModel(
             action = TimerForegroundService.ACTION_STOP
         }
         appContext.startService(intent)
-        clearActiveTimer()
     }
 
     fun cancelTimer() {
@@ -123,15 +169,62 @@ class TimerViewModel(
             action = TimerForegroundService.ACTION_CANCEL
         }
         appContext.startService(intent)
-        clearActiveTimer()
+    }
+
+    fun deleteRecord(record: TimingRecordEntity) {
+        viewModelScope.launch {
+            timingRecordRepository.delete(record)
+        }
+    }
+
+    fun updateRecordDurationSeconds(record: TimingRecordEntity, durationSeconds: Long) {
+        viewModelScope.launch {
+            timingRecordRepository.updateRecordWithLinkedFields(
+                record = record,
+                editedField = EditedField.DURATION_MS,
+                newValue = durationSeconds.coerceAtLeast(1L) * 1000L
+            )
+        }
+    }
+
+    fun updateProjectConfig(
+        mode: TimerMode,
+        countdownSeconds: Long?,
+        voiceIntervalSeconds: Long?,
+        prepareSeconds: Long?
+    ) {
+        val currentProject = project ?: return
+
+        viewModelScope.launch {
+            val updatedProject = currentProject.copy(
+                timerMode = mode.name,
+                defaultDurationMs = if (mode == TimerMode.COUNTDOWN) {
+                    countdownSeconds?.coerceAtLeast(1L)?.times(1_000L)
+                } else {
+                    null
+                },
+                voiceIntervalMs = voiceIntervalSeconds?.takeIf { it > 0L }?.times(1_000L),
+                prepareTimeSeconds = prepareSeconds?.takeIf { it > 0L },
+                updatedAt = System.currentTimeMillis()
+            )
+
+            projectRepository.updateProject(updatedProject)
+            project = updatedProject
+            _config.value = buildConfig(updatedProject)
+        }
     }
 
     private fun loadProject() {
         viewModelScope.launch {
-            val loadedProject = projectRepository.getProjectById(projectId).firstOrNull() ?: return@launch
-            project = loadedProject
-            _projectName.value = loadedProject.name
-            _config.value = buildConfig(loadedProject)
+            projectRepository.getProjectById(projectId)
+                .filterNotNull()
+                .collect { loadedProject ->
+                    project = loadedProject
+                    _projectName.value = loadedProject.name
+                    if (timerState.value == TimerState.IDLE) {
+                        _config.value = buildConfig(loadedProject)
+                    }
+                }
         }
     }
 
@@ -159,49 +252,6 @@ class TimerViewModel(
         )
     }
 
-    private fun observeCompletionAnnouncements() {
-        viewModelScope.launch {
-            shouldAnnounce.collect { signal ->
-                if (signal != -1L) return@collect
-
-                val currentConfig = activeTimerConfig ?: return@collect
-                val durationMs = currentConfig.durationMs ?: elapsedMs.value
-                val endEpoch = System.currentTimeMillis()
-                val startEpoch = if (activeStartEpoch > 0L) {
-                    activeStartEpoch
-                } else {
-                    endEpoch - durationMs
-                }
-
-                saveRecord(
-                    TimerResult(
-                        projectId = currentConfig.projectId,
-                        startTimeEpoch = startEpoch,
-                        endTimeEpoch = endEpoch,
-                        durationMs = durationMs
-                    )
-                )
-                clearActiveTimer()
-            }
-        }
-    }
-
-    private suspend fun saveRecord(result: TimerResult) {
-        val record = TimingRecordEntity(
-            projectId = result.projectId,
-            startTime = result.startTimeEpoch,
-            endTime = result.endTimeEpoch,
-            durationMs = result.durationMs,
-            createdAt = System.currentTimeMillis()
-        )
-        timingRecordRepository.insert(record)
-    }
-
-    private fun clearActiveTimer() {
-        activeTimerConfig = null
-        activeStartEpoch = 0L
-    }
-
     private fun String.toTimerMode(): TimerMode {
         return if (this == TimerMode.COUNTDOWN.name) {
             TimerMode.COUNTDOWN
@@ -210,7 +260,50 @@ class TimerViewModel(
         }
     }
 
+    private fun buildWeeklyStats(records: List<TimingRecordEntity>): List<WeeklyStat> {
+        val calendar = Calendar.getInstance()
+        setToDayStart(calendar)
+        val endOfToday = calendar.timeInMillis + DAY_MS
+        val startOfWindow = calendar.timeInMillis - (6 * DAY_MS)
+
+        val buckets = LongArray(7)
+        records.forEach { record ->
+            if (record.startTime < startOfWindow || record.startTime >= endOfToday) return@forEach
+            val index = ((record.startTime - startOfWindow) / DAY_MS).toInt()
+            if (index in buckets.indices) {
+                buckets[index] += record.durationMs
+            }
+        }
+
+        return (0..6).map { offset ->
+            val dayCalendar = Calendar.getInstance().apply {
+                timeInMillis = startOfWindow + offset * DAY_MS
+            }
+            WeeklyStat(
+                label = DAY_LABELS[dayCalendar.get(Calendar.DAY_OF_WEEK)] ?: "",
+                durationMs = buckets[offset]
+            )
+        }
+    }
+
+    private fun setToDayStart(calendar: Calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+    }
+
     companion object {
+        private const val DAY_MS = 24 * 60 * 60 * 1000L
+        private val DAY_LABELS = mapOf(
+            Calendar.SUNDAY to "Sun",
+            Calendar.MONDAY to "Mon",
+            Calendar.TUESDAY to "Tue",
+            Calendar.WEDNESDAY to "Wed",
+            Calendar.THURSDAY to "Thu",
+            Calendar.FRIDAY to "Fri",
+            Calendar.SATURDAY to "Sat"
+        )
         fun factory(application: Application, projectId: Long): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

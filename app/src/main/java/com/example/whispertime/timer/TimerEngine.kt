@@ -43,6 +43,7 @@ class TimerEngine(
     private var startElapsed: Long = 0L
     private var pausedElapsedMs: Long = 0L
     private var lastAnnouncedMs: Long = 0L
+    private var completionPending: Boolean = false
     private var timerJob: Job? = null
 
     fun start(config: TimerConfig) {
@@ -51,6 +52,7 @@ class TimerEngine(
         this.config = config
         pausedElapsedMs = 0L
         lastAnnouncedMs = 0L
+        completionPending = false
         _elapsedMs.value = 0L
         _remainingMs.value = config.durationMs
 
@@ -67,6 +69,7 @@ class TimerEngine(
     }
 
     fun pause() {
+        if (completionPending) return
         if (_state.value != TimerState.RUNNING) return
 
         pausedElapsedMs = _elapsedMs.value
@@ -75,6 +78,7 @@ class TimerEngine(
     }
 
     fun resume() {
+        if (completionPending) return
         if (_state.value != TimerState.PAUSED) return
 
         startElapsed = timeSource.elapsedRealtime()
@@ -116,6 +120,7 @@ class TimerEngine(
         _prepareRemainingMs.value = null
         pausedElapsedMs = 0L
         lastAnnouncedMs = 0L
+        completionPending = false
         config = null
         timerJob = null
     }
@@ -153,8 +158,11 @@ class TimerEngine(
                     val remaining = (currentConfig.durationMs - elapsed).coerceAtLeast(0L)
                     _remainingMs.value = remaining
                     if (remaining == 0L) {
-                        _shouldAnnounce.tryEmit(-1L)
-                        reset()
+                        if (!completionPending) {
+                            completionPending = true
+                            _state.value = TimerState.PAUSED
+                            _shouldAnnounce.tryEmit(-1L)
+                        }
                         break
                     }
                 }

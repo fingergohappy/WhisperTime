@@ -1,6 +1,8 @@
 package com.example.whispertime.navigation
 
 sealed class Screen(val route: String) {
+    object TimerHome : Screen("timer_home")
+
     object ProjectList : Screen("project_list")
     
     data class ProjectEdit(val projectId: Long? = null) : Screen(
