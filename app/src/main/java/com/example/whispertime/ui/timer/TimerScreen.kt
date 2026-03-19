@@ -233,13 +233,23 @@ fun TimerScreen(
         else -> ((elapsedMs / 1000L) % 60L).toFloat() / 60f
     }
 
-    val shouldSkipRingAnimation = selectedMode == TimerMode.COUNT_UP &&
-        !isPreparing &&
-        elapsedMs > 0L &&
-        elapsedMs % 60_000L == 0L
+    // 倒计时模式下：接近结束时（剩余<=3秒）跳过动画，确保与语音同步
+    // 正计时模式下：每分钟整点时跳过动画
+    val shouldSkipRingAnimation = when {
+        selectedMode == TimerMode.COUNTDOWN && !isPreparing -> {
+            val remaining = remainingMs ?: 0L
+            remaining <= 3000L || remaining == 0L
+        }
+        selectedMode == TimerMode.COUNT_UP && !isPreparing -> {
+            elapsedMs > 0L && elapsedMs % 60_000L == 0L
+        }
+        else -> false
+    }
+    // 倒计时使用更快的动画（300ms）以保持与语音同步
+    val ringAnimationDuration = if (selectedMode == TimerMode.COUNTDOWN && !isPreparing) 300 else 900
     val animatedRingProgress by animateFloatAsState(
         targetValue = ringProgressTarget,
-        animationSpec = tween(durationMillis = 900),
+        animationSpec = tween(durationMillis = ringAnimationDuration),
         label = "ring_progress"
     )
     val ringProgress = if (shouldSkipRingAnimation) ringProgressTarget else animatedRingProgress

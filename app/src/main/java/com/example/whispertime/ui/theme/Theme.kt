@@ -1,11 +1,14 @@
 package com.example.whispertime.ui.theme
 
-import android.app.Activity
 import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = Indigo400,
@@ -52,6 +55,16 @@ fun WhisperTimeTheme(
     val colorScheme = when {
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+
+    // Set navigation bar color to match background
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as android.app.Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.value.toInt()
+        }
     }
 
     MaterialTheme(
