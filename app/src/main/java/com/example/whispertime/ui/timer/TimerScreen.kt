@@ -12,6 +12,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -81,6 +82,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -170,10 +173,8 @@ fun TimerScreen(
 
     var viewMode by remember { mutableStateOf(TimerViewMode.TIMER) }
     var showDrawer by remember { mutableStateOf(false) }
-    var bottomPanelState by remember(projectId) { mutableStateOf(BottomPanelState.COLLAPSED) }
+    var bottomPanelState by remember(projectId) { mutableStateOf(BottomPanelState.HALF) }
     var bottomTab by remember { mutableStateOf(BottomTab.HISTORY) }
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
     var editingRecord by remember { mutableStateOf<TimingRecordEntity?>(null) }
     var editDurationSeconds by remember { mutableStateOf("") }
 
@@ -208,7 +209,7 @@ fun TimerScreen(
 
     LaunchedEffect(isTimerFocused) {
         if (isTimerFocused) {
-            bottomPanelState = BottomPanelState.COLLAPSED
+            bottomPanelState = BottomPanelState.HALF
         }
     }
 
@@ -698,36 +699,7 @@ fun TimerScreen(
                                 recordCount = recordCount,
                                 averageDurationMs = averageDurationMs,
                                 weeklyStats = weeklyStats,
-                                onToggleExpand = {
-                                    bottomPanelState = when (bottomPanelState) {
-                                        BottomPanelState.COLLAPSED -> BottomPanelState.HALF
-                                        BottomPanelState.HALF -> BottomPanelState.EXPANDED
-                                        BottomPanelState.EXPANDED -> BottomPanelState.HALF
-                                    }
-                                },
-                                onDragAmount = { dragY ->
-                                    dragAccumulator += dragY
-                                    dragOffset -= dragY
-                                },
-                                onDragEnd = {
-                                    val threshold = 100f
-                                    bottomPanelState = when {
-                                        dragAccumulator <= -threshold -> when (bottomPanelState) {
-                                            BottomPanelState.COLLAPSED -> BottomPanelState.HALF
-                                            BottomPanelState.HALF -> BottomPanelState.EXPANDED
-                                            BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
-                                        }
-                                        dragAccumulator >= threshold -> when (bottomPanelState) {
-                                            BottomPanelState.EXPANDED -> BottomPanelState.HALF
-                                            BottomPanelState.HALF -> BottomPanelState.COLLAPSED
-                                            BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
-                                        }
-                                        else -> bottomPanelState
-                                    }
-                                    dragAccumulator = 0f
-                                    dragOffset = 0f
-                                },
-                                dragOffset = dragOffset,
+                                onSetPanelState = { bottomPanelState = it },
                                 onChangeTab = { bottomTab = it },
                                 onEditRecord = {
                                     editingRecord = it
@@ -1039,52 +1011,122 @@ private fun BottomPanel(
     recordCount: Int,
     averageDurationMs: Long,
     weeklyStats: List<TimerViewModel.WeeklyStat>,
-    onToggleExpand: () -> Unit,
-    onDragAmount: (Float) -> Unit,
-    onDragEnd: () -> Unit,
-    dragOffset: Float = 0f,
+    onSetPanelState: (BottomPanelState) -> Unit,
     onChangeTab: (BottomTab) -> Unit,
     onEditRecord: (TimingRecordEntity) -> Unit,
     onDeleteRecord: (TimingRecordEntity) -> Unit
 ) {
-    val targetBaseHeight = when (panelState) {
-        BottomPanelState.COLLAPSED -> 82.dp
+    val targetHeight = when (panelState) {
+        BottomPanelState.COLLAPSED -> 56.dp
         BottomPanelState.HALF -> 360.dp
         BottomPanelState.EXPANDED -> 740.dp
     }
-    
-    val animatedHeight by animateDpAsState(
-        targetValue = targetBaseHeight,
-        animationSpec = spring(
-            dampingRatio = 0.72f,
-            stiffness = 320f
-        ),
-        label = "bottom_panel_height"
-    )
 
-    val currentHeight = (animatedHeight + (dragOffset / LocalContext.current.resources.displayMetrics.density).dp)
-        .coerceIn(82.dp, 760.dp)
+    val density = LocalContext.current.resources.displayMetrics.density
+    val animatedHeight = remember { Animatable(targetHeight.value) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(targetHeight) {
+        animatedHeight.animateTo(
+            targetValue = targetHeight.value,
+            animationSpec = spring(
+                dampingRatio = 0.72f,
+                stiffness = 320f
+            )
+        )
+    }
+
+    val currentHeight = animatedHeight.value.dp.coerceIn(56.dp, 760.dp)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(currentHeight)
-            .pointerInput(disabled) {
+            .pointerInput(disabled, panelState) {
                 if (!disabled) {
+                    var dragAccumulator = 0f
                     detectVerticalDragGestures(
-                        onVerticalDrag = { _, dragAmount -> onDragAmount(dragAmount) },
-                        onDragEnd = { onDragEnd() }
+                        onVerticalDrag = { _, dragAmount ->
+                            dragAccumulator += dragAmount
+                            scope.launch {
+                                animatedHeight.snapTo((animatedHeight.value - dragAmount / density).coerceIn(56f, 760f))
+                            }
+                        },
+                        onDragEnd = {
+                            val threshold = 100f
+                            val newState = when {
+                                dragAccumulator <= -threshold -> when (panelState) {
+                                    BottomPanelState.COLLAPSED -> BottomPanelState.HALF
+                                    BottomPanelState.HALF -> BottomPanelState.EXPANDED
+                                    BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
+                                }
+                                dragAccumulator >= threshold -> when (panelState) {
+                                    BottomPanelState.EXPANDED -> BottomPanelState.HALF
+                                    BottomPanelState.HALF -> BottomPanelState.COLLAPSED
+                                    BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
+                                }
+                                else -> panelState
+                            }
+                            if (newState != panelState) {
+                                onSetPanelState(newState)
+                            } else {
+                                scope.launch {
+                                    animatedHeight.animateTo(
+                                        targetValue = targetHeight.value,
+                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
+                                    )
+                                }
+                            }
+                            dragAccumulator = 0f
+                        }
                     )
                 }
             }
-            .pointerInput(disabled) {
+            .pointerInput(disabled, panelState) {
                 if (!disabled) {
+                    var dragAccumulator = 0f
                     detectDragGesturesAfterLongPress(
-                        onDrag = { _, dragAmount -> 
-                            onDragAmount(dragAmount.y) 
+                        onDrag = { _, dragAmount ->
+                            dragAccumulator += dragAmount.y
+                            scope.launch {
+                                animatedHeight.snapTo((animatedHeight.value - dragAmount.y / density).coerceIn(56f, 760f))
+                            }
                         },
-                        onDragEnd = { onDragEnd() },
-                        onDragCancel = { onDragEnd() }
+                        onDragEnd = {
+                            val threshold = 100f
+                            val newState = when {
+                                dragAccumulator <= -threshold -> when (panelState) {
+                                    BottomPanelState.COLLAPSED -> BottomPanelState.HALF
+                                    BottomPanelState.HALF -> BottomPanelState.EXPANDED
+                                    BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
+                                }
+                                dragAccumulator >= threshold -> when (panelState) {
+                                    BottomPanelState.EXPANDED -> BottomPanelState.HALF
+                                    BottomPanelState.HALF -> BottomPanelState.COLLAPSED
+                                    BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
+                                }
+                                else -> panelState
+                            }
+                            if (newState != panelState) {
+                                onSetPanelState(newState)
+                            } else {
+                                scope.launch {
+                                    animatedHeight.animateTo(
+                                        targetValue = targetHeight.value,
+                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
+                                    )
+                                }
+                            }
+                            dragAccumulator = 0f
+                        },
+                        onDragCancel = {
+                            scope.launch {
+                                animatedHeight.animateTo(
+                                    targetValue = targetHeight.value,
+                                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
+                                )
+                            }
+                        }
                     )
                 }
             },
@@ -1104,65 +1146,57 @@ private fun BottomPanel(
                     .width(46.dp)
                     .height(4.dp)
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), CircleShape)
-                    .clickable(enabled = !disabled, onClick = onToggleExpand)
+                    .clickable(enabled = !disabled) {
+                        if (panelState == BottomPanelState.COLLAPSED) {
+                            onSetPanelState(BottomPanelState.HALF)
+                        } else {
+                            onSetPanelState(BottomPanelState.COLLAPSED)
+                        }
+                    }
             )
 
-            if (panelState == BottomPanelState.COLLAPSED) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Text(
-                        "上拉查看 HISTORY / STATS",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (panelState != BottomPanelState.COLLAPSED) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { onChangeTab(BottomTab.HISTORY) }, enabled = !disabled) {
+                        Text(
+                            "HISTORY",
+                            color = if (tab == BottomTab.HISTORY) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    TextButton(onClick = { onChangeTab(BottomTab.STATS) }, enabled = !disabled) {
+                        Text(
+                            "STATS",
+                            color = if (tab == BottomTab.STATS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp
+                        )
+                    }
                 }
-                return@Column
-            }
 
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { onChangeTab(BottomTab.HISTORY) }, enabled = !disabled) {
-                    Text(
-                        "HISTORY",
-                        color = if (tab == BottomTab.HISTORY) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
+                Box(modifier = Modifier.fillMaxSize()) {
+                    BottomTabContent(
+                        modifier = Modifier.fillMaxSize(),
+                        tab = tab,
+                        records = records,
+                        totalDurationMs = totalDurationMs,
+                        recordCount = recordCount,
+                        averageDurationMs = averageDurationMs,
+                        weeklyStats = weeklyStats,
+                        disabled = disabled,
+                        enableHorizontalSwipe = !disabled,
+                        onChangeTab = onChangeTab,
+                        onEditRecord = onEditRecord,
+                        onDeleteRecord = onDeleteRecord,
+                        isFullscreen = panelState == BottomPanelState.EXPANDED
                     )
-                }
-                TextButton(onClick = { onChangeTab(BottomTab.STATS) }, enabled = !disabled) {
-                    Text(
-                        "STATS",
-                        color = if (tab == BottomTab.STATS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                BottomTabContent(
-                    modifier = Modifier.fillMaxSize(),
-                    tab = tab,
-                    records = records,
-                    totalDurationMs = totalDurationMs,
-                    recordCount = recordCount,
-                    averageDurationMs = averageDurationMs,
-                    weeklyStats = weeklyStats,
-                    disabled = disabled,
-                    enableHorizontalSwipe = !disabled,
-                    onChangeTab = onChangeTab,
-                    onEditRecord = onEditRecord,
-                    onDeleteRecord = onDeleteRecord,
-                    isFullscreen = panelState == BottomPanelState.EXPANDED
-                )
-
-                if (disabled) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(Color.Black.copy(alpha = 0.35f))
-                    )
+                    if (disabled) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(Color.Black.copy(alpha = 0.35f))
+                        )
+                    }
                 }
             }
         }
