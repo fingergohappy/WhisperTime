@@ -202,9 +202,12 @@ fun TimerScreen(
     val isPaused = timerState == TimerState.PAUSED
     val isTimerActive = isRunning || isPreparing
     val idleAtZero = timerState == TimerState.IDLE && elapsedMs == 0L
+    val isTimerFocused = isTimerActive || isPaused
+    val stageLayout = timerStageLayout(timerState)
+    val circleUiState = timerCircleUiState(timerState)
 
-    LaunchedEffect(isTimerActive) {
-        if (isTimerActive) {
+    LaunchedEffect(isTimerFocused) {
+        if (isTimerFocused) {
             bottomPanelState = BottomPanelState.COLLAPSED
         }
     }
@@ -240,12 +243,12 @@ fun TimerScreen(
     )
     val ringProgress = if (shouldSkipRingAnimation) ringProgressTarget else animatedRingProgress
     val timerCircleFocusScale by animateFloatAsState(
-        targetValue = if (isTimerActive) 1.12f else 1f,
+        targetValue = if (isTimerFocused) 1.12f else 1f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 180f),
         label = "timer_circle_focus_scale"
     )
     val timerCircleOffsetY by animateDpAsState(
-        targetValue = if (isTimerActive) (-20).dp else 0.dp,
+        targetValue = stageLayout.circleOffsetYDp.dp,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 180f),
         label = "timer_circle_focus_offset"
     )
@@ -445,10 +448,10 @@ fun TimerScreen(
                                     radius = 1200f
                                 )
                             )
-                            .pointerInput(projectId, projects, viewMode, showDrawer, isTimerActive) {
+                            .pointerInput(projectId, projects, viewMode, showDrawer, isTimerFocused) {
                                 if (
                                     viewMode == TimerViewMode.TIMER &&
-                                    !isTimerActive &&
+                                    !isTimerFocused &&
                                     !showDrawer &&
                                     projects.size > 1
                                 ) {
@@ -502,7 +505,7 @@ fun TimerScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             AnimatedVisibility(
-                                visible = !isTimerActive,
+                                visible = stageLayout.showAmbientChrome,
                                 enter = fadeIn(animationSpec = tween(300)) +
                                     slideInVertically(animationSpec = tween(300)) { -it },
                                 exit = fadeOut(animationSpec = tween(250)) +
@@ -577,10 +580,13 @@ fun TimerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f),
-                                contentAlignment = Alignment.TopCenter
+                                contentAlignment = when (stageLayout.circleAlignment) {
+                                    TimerCircleAlignment.TOP_CENTER -> Alignment.TopCenter
+                                    TimerCircleAlignment.CENTER -> Alignment.Center
+                                }
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(top = 36.dp),
+                                    modifier = Modifier.padding(top = stageLayout.circleTopPaddingDp.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Top
                                 ) {
@@ -616,15 +622,11 @@ fun TimerScreen(
                                         primaryColor = MaterialTheme.colorScheme.primary,
                                         progress = ringProgress,
                                         isPreparing = isPreparing,
-                                        isPaused = isPaused,
                                         preparingText = if (displaySeconds > 0L) displaySeconds.toString() else "GO!",
                                         timeText = formatLarge(displaySeconds),
-                                        hintText = when {
-                                            isPreparing -> "Tap to stop"
-                                            isRunning -> "Tap to pause"
-                                            isPaused -> "Tap to resume"
-                                            else -> "Tap to start"
-                                        },
+                                        showStopButton = circleUiState.showStopButton,
+                                        primaryHintText = circleUiState.primaryHintText,
+                                        secondaryHintText = circleUiState.secondaryHintText,
                                         onClick = ::onCircleClick,
                                         onStop = { 
                                             viewModel.stopTimer()
@@ -664,7 +666,7 @@ fun TimerScreen(
                             }
 
                             AnimatedVisibility(
-                                visible = !isTimerActive,
+                                visible = stageLayout.showAmbientChrome,
                                 enter = fadeIn(animationSpec = tween(300)) +
                                     slideInVertically(animationSpec = tween(300)) { it },
                                 exit = fadeOut(animationSpec = tween(250)) +
@@ -677,7 +679,7 @@ fun TimerScreen(
                         }
 
                         AnimatedVisibility(
-                            visible = !isTimerActive,
+                            visible = stageLayout.showAmbientChrome,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .navigationBarsPadding(),
@@ -757,10 +759,11 @@ private fun TimerCircle(
     primaryColor: Color,
     progress: Float,
     isPreparing: Boolean,
-    isPaused: Boolean = false,
     preparingText: String,
     timeText: String,
-    hintText: String,
+    showStopButton: Boolean,
+    primaryHintText: String,
+    secondaryHintText: String?,
     onClick: () -> Unit,
     onStop: () -> Unit = {}
 ) {
@@ -846,26 +849,28 @@ private fun TimerCircle(
                     letterSpacing = (-2).sp,
                     textAlign = TextAlign.Center
                 )
-                
-                if (isPaused) {
+
+                if (showStopButton) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = onStop,
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f))
                     ) {
-                        Text("STOP", fontWeight = FontWeight.Bold)
+                        Text(primaryHintText, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Tap circle to resume",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
+                    secondaryHintText?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 } else {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = hintText,
+                        text = primaryHintText,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 1.sp
