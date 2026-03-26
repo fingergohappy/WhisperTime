@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ fun ProjectEditScreen(
     val timerMode by viewModel.timerMode.collectAsState()
     val defaultDuration by viewModel.defaultDurationMinutes.collectAsState()
     val voiceInterval by viewModel.voiceIntervalSeconds.collectAsState()
+    val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
     val prepareTime by viewModel.prepareTimeSeconds.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -149,6 +151,26 @@ fun ProjectEditScreen(
                 singleLine = true,
                 placeholder = { Text("可选") }
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("开启震动提醒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "复用语音播报间隔；准备倒计时、开始和结束也会震动",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Switch(
+                    checked = vibrationEnabled,
+                    onCheckedChange = { viewModel.vibrationEnabled.value = it }
+                )
+            }
 
             OutlinedTextField(
                 value = prepareTime,

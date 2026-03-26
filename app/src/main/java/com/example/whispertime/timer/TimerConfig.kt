@@ -6,6 +6,7 @@ data class TimerConfig(
     val mode: TimerMode,
     val durationMs: Long? = null,
     val voiceIntervalMs: Long? = null,
+    val vibrationEnabled: Boolean = false,
     val prepareTimeMs: Long? = null
 )
 

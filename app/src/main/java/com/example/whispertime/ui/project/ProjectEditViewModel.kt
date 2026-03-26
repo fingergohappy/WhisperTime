@@ -23,6 +23,7 @@ class ProjectEditViewModel(
     val timerMode = MutableStateFlow("COUNT_UP")
     val defaultDurationMinutes = MutableStateFlow("")
     val voiceIntervalSeconds = MutableStateFlow("")
+    val vibrationEnabled = MutableStateFlow(false)
     val prepareTimeSeconds = MutableStateFlow("")
     
     val isEditMode: Boolean = projectId != null
@@ -39,6 +40,7 @@ class ProjectEditViewModel(
                     timerMode.value = it.timerMode
                     defaultDurationMinutes.value = it.defaultDurationMs?.let { ms -> (ms / 60000).toString() } ?: ""
                     voiceIntervalSeconds.value = it.voiceIntervalMs?.let { ms -> (ms / 1000).toString() } ?: ""
+                    vibrationEnabled.value = it.vibrationEnabled
                     prepareTimeSeconds.value = it.prepareTimeSeconds?.toString() ?: ""
                 }
             }
@@ -50,6 +52,7 @@ class ProjectEditViewModel(
         val mode = timerMode.value
         val durationText = defaultDurationMinutes.value.trim()
         val intervalText = voiceIntervalSeconds.value.trim()
+        val isVibrationEnabled = vibrationEnabled.value
         val prepareText = prepareTimeSeconds.value.trim()
 
         if (name.isEmpty()) return
@@ -74,6 +77,7 @@ class ProjectEditViewModel(
                         timerMode = mode,
                         defaultDurationMs = durationMs,
                         voiceIntervalMs = intervalMs,
+                        vibrationEnabled = isVibrationEnabled,
                         prepareTimeSeconds = prepareSeconds,
                         updatedAt = System.currentTimeMillis()
                     )
@@ -85,6 +89,7 @@ class ProjectEditViewModel(
                     timerMode = mode,
                     defaultDurationMs = durationMs,
                     voiceIntervalMs = intervalMs,
+                    vibrationEnabled = isVibrationEnabled,
                     prepareTimeSeconds = prepareSeconds,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()

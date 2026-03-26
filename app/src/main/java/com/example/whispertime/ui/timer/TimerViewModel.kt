@@ -107,27 +107,23 @@ class TimerViewModel(
         modeOverride: TimerMode? = null,
         durationOverride: Long? = null,
         intervalOverride: Long? = null,
+        vibrationOverride: Boolean? = null,
         prepareOverrideMs: Long? = null
     ) {
         val currentProject = project ?: return
         if (timerState.value != TimerState.IDLE) return
 
         val mode = modeOverride ?: currentProject.timerMode.toTimerMode()
-        val durationMs = if (mode == TimerMode.COUNTDOWN) {
-            durationOverride ?: currentProject.defaultDurationMs
-        } else {
-            null
-        }
-        val intervalMs = intervalOverride ?: currentProject.voiceIntervalMs
-        val prepareTimeMs = prepareOverrideMs ?: currentProject.prepareTimeSeconds?.let { it * 1000L }
-        val timerConfig = TimerConfig(
-            projectId = currentProject.id,
-            projectName = currentProject.name,
-            mode = mode,
-            durationMs = durationMs,
-            voiceIntervalMs = intervalMs,
-            prepareTimeMs = prepareTimeMs
+        val timerConfig = currentProject.toTimerConfig(
+            modeOverride = mode,
+            durationOverride = durationOverride,
+            intervalOverride = intervalOverride,
+            vibrationOverride = vibrationOverride,
+            prepareOverrideMs = prepareOverrideMs
         )
+        val durationMs = timerConfig.durationMs
+        val intervalMs = timerConfig.voiceIntervalMs
+        val prepareTimeMs = timerConfig.prepareTimeMs
 
         _config.value = timerConfig
 
@@ -138,6 +134,7 @@ class TimerViewModel(
             putExtra(TimerForegroundService.EXTRA_TIMER_MODE, mode.name)
             if (durationMs != null) putExtra(TimerForegroundService.EXTRA_DURATION_MS, durationMs)
             if (intervalMs != null) putExtra(TimerForegroundService.EXTRA_INTERVAL_MS, intervalMs)
+            putExtra(TimerForegroundService.EXTRA_VIBRATION_ENABLED, timerConfig.vibrationEnabled)
             if (prepareTimeMs != null) putExtra(TimerForegroundService.EXTRA_PREPARE_MS, prepareTimeMs)
         }
         ContextCompat.startForegroundService(appContext, intent)
@@ -191,6 +188,7 @@ class TimerViewModel(
         mode: TimerMode,
         countdownSeconds: Long?,
         voiceIntervalSeconds: Long?,
+        vibrationEnabled: Boolean,
         prepareSeconds: Long?
     ) {
         val currentProject = project ?: return
@@ -204,6 +202,7 @@ class TimerViewModel(
                     null
                 },
                 voiceIntervalMs = voiceIntervalSeconds?.takeIf { it > 0L }?.times(1_000L),
+                vibrationEnabled = vibrationEnabled,
                 prepareTimeSeconds = prepareSeconds?.takeIf { it > 0L },
                 updatedAt = System.currentTimeMillis()
             )
@@ -234,23 +233,12 @@ class TimerViewModel(
         durationOverride: Long? = null,
         intervalOverride: Long? = null,
         prepareOverrideMs: Long? = null
-    ): TimerConfig {
-        val mode = modeOverride ?: project.timerMode.toTimerMode()
-        val durationMs = if (mode == TimerMode.COUNTDOWN) {
-            durationOverride ?: project.defaultDurationMs
-        } else {
-            null
-        }
-
-        return TimerConfig(
-            projectId = project.id,
-            projectName = project.name,
-            mode = mode,
-            durationMs = durationMs,
-            voiceIntervalMs = intervalOverride ?: project.voiceIntervalMs,
-            prepareTimeMs = prepareOverrideMs ?: project.prepareTimeSeconds?.let { it * 1000L }
-        )
-    }
+    ): TimerConfig = project.toTimerConfig(
+        modeOverride = modeOverride,
+        durationOverride = durationOverride,
+        intervalOverride = intervalOverride,
+        prepareOverrideMs = prepareOverrideMs
+    )
 
     private fun String.toTimerMode(): TimerMode {
         return if (this == TimerMode.COUNTDOWN.name) {
@@ -319,4 +307,33 @@ class TimerViewModel(
                 }
             }
     }
+}
+
+internal fun ProjectEntity.toTimerConfig(
+    modeOverride: TimerMode? = null,
+    durationOverride: Long? = null,
+    intervalOverride: Long? = null,
+    vibrationOverride: Boolean? = null,
+    prepareOverrideMs: Long? = null
+): TimerConfig {
+    val mode = modeOverride ?: if (timerMode == TimerMode.COUNTDOWN.name) {
+        TimerMode.COUNTDOWN
+    } else {
+        TimerMode.COUNT_UP
+    }
+    val durationMs = if (mode == TimerMode.COUNTDOWN) {
+        durationOverride ?: defaultDurationMs
+    } else {
+        null
+    }
+
+    return TimerConfig(
+        projectId = id,
+        projectName = name,
+        mode = mode,
+        durationMs = durationMs,
+        voiceIntervalMs = intervalOverride ?: voiceIntervalMs,
+        vibrationEnabled = vibrationOverride ?: vibrationEnabled,
+        prepareTimeMs = prepareOverrideMs ?: prepareTimeSeconds?.let { it * 1000L }
+    )
 }

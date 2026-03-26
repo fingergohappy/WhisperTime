@@ -11,6 +11,7 @@ data class ProjectEntity(
     val timerMode: String,
     val defaultDurationMs: Long?,
     val voiceIntervalMs: Long?,
+    val vibrationEnabled: Boolean = false,
     val prepareTimeSeconds: Long?,
     val createdAt: Long,
     val updatedAt: Long

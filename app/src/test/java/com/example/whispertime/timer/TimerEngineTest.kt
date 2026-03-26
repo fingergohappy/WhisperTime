@@ -64,12 +64,16 @@ class TimerEngineTest {
     }
 
     @Test
-    fun countdown_autoStopsAtZero() = runTest(UnconfinedTestDispatcher()) {
+    fun countdown_signalsCompletionAtZero() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
         val engine = TimerEngine(
             timeSource = TimeSource { fakeTime },
             coroutineScope = this
         )
+        val announcements = mutableListOf<Long>()
+        val collectorJob = launch {
+            engine.shouldAnnounce.collect { announcements.add(it) }
+        }
 
         engine.start(
             TimerConfig(
@@ -83,7 +87,9 @@ class TimerEngineTest {
         fakeTime = 600L
         advanceTimeBy(300L)
 
-        assertEquals(TimerState.IDLE, engine.state.value)
+        assertEquals(TimerState.PAUSED, engine.state.value)
+        assertTrue(announcements.contains(-1L))
+        collectorJob.cancel()
     }
 
     @Test

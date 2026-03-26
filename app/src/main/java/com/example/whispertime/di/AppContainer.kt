@@ -8,6 +8,7 @@ import com.example.whispertime.data.repository.ProjectRepository
 import com.example.whispertime.data.repository.TimingRecordRepository
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.tts.VoiceAnnouncementManager
+import com.example.whispertime.vibration.VibrationManager
 
 class AppContainer(context: Context) {
     private val database = WhisperTimeDatabase.getInstance(context)
@@ -18,4 +19,5 @@ class AppContainer(context: Context) {
     val timingRecordRepository = TimingRecordRepository(timingRecordDao)
     val timerEngine = TimerEngine()
     val voiceAnnouncementManager = VoiceAnnouncementManager(context).also { it.init() }
+    val vibrationManager = VibrationManager(context)
 }

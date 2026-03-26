@@ -31,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -183,6 +184,7 @@ fun TimerScreen(
     var prepareSecondsText by remember { mutableStateOf("5") }
     var voiceIntervalSecondsText by remember { mutableStateOf("60") }
     var voiceEnabled by remember { mutableStateOf(true) }
+    var vibrationReminderEnabled by remember { mutableStateOf(false) }
     var initialized by remember { mutableStateOf(false) }
     var projectSwipeAccumulator by remember(projectId) { mutableFloatStateOf(0f) }
 
@@ -194,6 +196,7 @@ fun TimerScreen(
             prepareSecondsText = ((current.prepareTimeMs ?: 5_000L) / 1000L).toString()
             voiceIntervalSecondsText = ((current.voiceIntervalMs ?: 60_000L) / 1000L).toString()
             voiceEnabled = (current.voiceIntervalMs ?: 0L) > 0L
+            vibrationReminderEnabled = current.vibrationEnabled
             initialized = true
         }
     }
@@ -286,6 +289,7 @@ fun TimerScreen(
             mode = selectedMode,
             countdownSeconds = if (selectedMode == TimerMode.COUNTDOWN) countdownSecondsText.toLongOrNull()?.coerceAtLeast(1L) else null,
             voiceIntervalSeconds = if (voiceEnabled) voiceIntervalSecondsText.toLongOrNull()?.coerceAtLeast(1L) else null,
+            vibrationEnabled = vibrationReminderEnabled,
             prepareSeconds = prepareSecondsText.toLongOrNull()?.coerceAtLeast(0L)
         )
     }
@@ -312,6 +316,7 @@ fun TimerScreen(
                     } else {
                         null
                     },
+                    vibrationOverride = vibrationReminderEnabled,
                     prepareOverrideMs = prepareSecondsText.toLongOrNull()?.coerceAtLeast(0L)?.times(1000L)
                 )
             }
@@ -414,6 +419,27 @@ fun TimerScreen(
                                     enabled = voiceEnabled,
                                     label = { Text("间隔（秒）") },
                                     modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("震动提醒", style = MaterialTheme.typography.labelLarge)
+                                    Switch(
+                                        checked = vibrationReminderEnabled,
+                                        onCheckedChange = { vibrationReminderEnabled = it }
+                                    )
+                                }
+                                Text(
+                                    text = "周期震动复用语音播报间隔；准备倒计时、开始和结束也会震动",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -596,6 +622,18 @@ fun TimerScreen(
                                     TimerCircleAlignment.CENTER -> Alignment.Center
                                 }
                             ) {
+                                if (!showDrawer && bottomPanelState != BottomPanelState.COLLAPSED) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .pointerInput(showDrawer, bottomPanelState) {
+                                                detectTapGestures {
+                                                    bottomPanelState = BottomPanelState.COLLAPSED
+                                                }
+                                            }
+                                    )
+                                }
+
                                 Column(
                                     modifier = Modifier.padding(top = stageLayout.circleTopPaddingDp.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,

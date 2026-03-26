@@ -18,6 +18,7 @@ import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
 import com.example.whispertime.timer.TimerState
 import com.example.whispertime.tts.VoiceAnnouncementManager
+import com.example.whispertime.vibration.VibrationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,6 +35,7 @@ class TimerForegroundService : Service() {
     private lateinit var timerEngine: TimerEngine
     private lateinit var timingRecordRepository: TimingRecordRepository
     private lateinit var voiceManager: VoiceAnnouncementManager
+    private lateinit var vibrationManager: VibrationManager
     private var serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var notificationJob: Job? = null
     private var completionJob: Job? = null
@@ -42,6 +44,7 @@ class TimerForegroundService : Service() {
     private var preparingSpeechJob: Job? = null
     private var currentProjectName: String = ""
     private var currentMode: TimerMode = TimerMode.COUNT_UP
+    private var vibrationEnabled: Boolean = false
     private var autoCompletionInProgress = false
 
     override fun onCreate() {
@@ -51,6 +54,7 @@ class TimerForegroundService : Service() {
         timerEngine = container.timerEngine
         timingRecordRepository = container.timingRecordRepository
         voiceManager = container.voiceAnnouncementManager
+        vibrationManager = container.vibrationManager
         createNotificationChannel()
     }
 
@@ -83,6 +87,7 @@ class TimerForegroundService : Service() {
         notificationJob?.cancel()
         completionJob?.cancel()
         announcementJob?.cancel()
+        vibrationManager.cancel()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -96,6 +101,7 @@ class TimerForegroundService : Service() {
         val mode = if (modeName == TimerMode.COUNTDOWN.name) TimerMode.COUNTDOWN else TimerMode.COUNT_UP
         val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 0L).takeIf { it > 0L }
         val intervalMs = intent.getLongExtra(EXTRA_INTERVAL_MS, 0L).takeIf { it > 0L }
+        vibrationEnabled = intent.getBooleanExtra(EXTRA_VIBRATION_ENABLED, false)
         val prepareTimeMs = intent.getLongExtra(EXTRA_PREPARE_MS, 0L).takeIf { it > 0L }
 
         Log.d(
@@ -112,6 +118,7 @@ class TimerForegroundService : Service() {
             mode = mode,
             durationMs = durationMs,
             voiceIntervalMs = intervalMs,
+            vibrationEnabled = vibrationEnabled,
             prepareTimeMs = prepareTimeMs
         )
 
@@ -126,6 +133,7 @@ class TimerForegroundService : Service() {
         val countdownSeconds = prepareTimeMs?.let { ((it + 999L) / 1000L).toInt() } ?: 0
         if (countdownSeconds <= 0) {
             voiceManager.announceQueued("开始")
+            vibrateIfEnabled()
             return
         }
 
@@ -141,6 +149,7 @@ class TimerForegroundService : Service() {
                         if (timerEngine.state.value == TimerState.RUNNING) {
                             hasSpokenStart = true
                             voiceManager.announceQueued("开始")
+                            vibrateIfEnabled()
                         }
                     }
                     cancel()
@@ -152,6 +161,7 @@ class TimerForegroundService : Service() {
 
                 lastSpokenSecond = secondsLeft
                 voiceManager.announceQueued(secondsLeft.toString())
+                vibrateIfEnabled()
             }
         }
     }
@@ -161,11 +171,13 @@ class TimerForegroundService : Service() {
         startCountdownJob?.cancel()
         preparingSpeechJob?.cancel()
         voiceManager.stopSpeaking()
+        vibrationManager.cancel()
         notificationJob?.cancel()
         completionJob?.cancel()
         announcementJob?.cancel()
         if (timerEngine.state.value != TimerState.IDLE) {
             voiceManager.announceEnd()
+            vibrateIfEnabled()
         }
         serviceScope.launch {
             val result = timerEngine.stop()
@@ -191,6 +203,7 @@ class TimerForegroundService : Service() {
         startCountdownJob?.cancel()
         preparingSpeechJob?.cancel()
         voiceManager.stopSpeaking()
+        vibrationManager.cancel()
         notificationJob?.cancel()
         completionJob?.cancel()
         announcementJob?.cancel()
@@ -228,8 +241,15 @@ class TimerForegroundService : Service() {
                     } else {
                         voiceManager.announceElapsed(timerEngine.elapsedMs.value)
                     }
+                    vibrateIfEnabled()
                 }
             }
+        }
+    }
+
+    private fun vibrateIfEnabled() {
+        if (vibrationEnabled) {
+            vibrationManager.vibrateReminder()
         }
     }
 
@@ -333,6 +353,7 @@ class TimerForegroundService : Service() {
         const val EXTRA_TIMER_MODE = "extra_timer_mode"
         const val EXTRA_DURATION_MS = "extra_duration_ms"
         const val EXTRA_INTERVAL_MS = "extra_interval_ms"
+        const val EXTRA_VIBRATION_ENABLED = "extra_vibration_enabled"
         const val EXTRA_PREPARE_MS = "extra_prepare_ms"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "timer_channel"
