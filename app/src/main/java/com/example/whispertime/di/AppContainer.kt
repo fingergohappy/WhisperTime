@@ -6,6 +6,7 @@ import com.example.whispertime.data.local.dao.ProjectDao
 import com.example.whispertime.data.local.dao.TimingRecordDao
 import com.example.whispertime.data.repository.ProjectRepository
 import com.example.whispertime.data.repository.TimingRecordRepository
+import com.example.whispertime.service.ActiveTimerSessionStore
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.tts.VoiceAnnouncementManager
 import com.example.whispertime.vibration.VibrationManager
@@ -18,6 +19,7 @@ class AppContainer(context: Context) {
     val projectRepository = ProjectRepository(projectDao)
     val timingRecordRepository = TimingRecordRepository(timingRecordDao)
     val timerEngine = TimerEngine()
+    val activeTimerSessionStore = ActiveTimerSessionStore.fromContext(context)
     val voiceAnnouncementManager = VoiceAnnouncementManager(context).also { it.init() }
     val vibrationManager = VibrationManager(context)
 }

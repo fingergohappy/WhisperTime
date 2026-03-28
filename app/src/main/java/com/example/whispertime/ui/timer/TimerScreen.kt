@@ -178,6 +178,7 @@ fun TimerScreen(
     var bottomTab by remember { mutableStateOf(BottomTab.HISTORY) }
     var editingRecord by remember { mutableStateOf<TimingRecordEntity?>(null) }
     var editDurationSeconds by remember { mutableStateOf("") }
+    var showDeleteProjectDialog by remember { mutableStateOf(false) }
 
     var selectedMode by remember { mutableStateOf(TimerMode.COUNT_UP) }
     var countdownSecondsText by remember { mutableStateOf("180") }
@@ -213,6 +214,14 @@ fun TimerScreen(
     LaunchedEffect(isTimerFocused) {
         if (isTimerFocused) {
             bottomPanelState = BottomPanelState.HALF
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.deleteResult.collect { deleted ->
+            if (deleted) {
+                onNavigateBack()
+            }
         }
     }
 
@@ -357,6 +366,29 @@ fun TimerScreen(
         )
     }
 
+    if (showDeleteProjectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteProjectDialog = false },
+            title = { Text("删除项目") },
+            text = { Text("确定要删除当前项目吗？项目下的记录也会一并删除，此操作不可撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteProjectDialog = false
+                        viewModel.deleteCurrentProject()
+                    }
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteProjectDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background
@@ -470,6 +502,21 @@ fun TimerScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("保存设置")
+                        }
+
+                        TextButton(
+                            onClick = { showDeleteProjectDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text("删除项目")
                         }
                     }
                 } else {

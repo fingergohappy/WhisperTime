@@ -1,5 +1,6 @@
 package com.example.whispertime.timer
 
+import android.os.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,7 +20,8 @@ fun interface TimeSource {
 }
 
 class TimerEngine(
-    private val timeSource: TimeSource = TimeSource { System.currentTimeMillis() },
+    private val timeSource: TimeSource = TimeSource { SystemClock.elapsedRealtime() },
+    private val wallClockTimeSource: () -> Long = { System.currentTimeMillis() },
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 ) {
 
@@ -61,7 +63,7 @@ class TimerEngine(
             _prepareRemainingMs.value = config.prepareTimeMs
             startPrepareLoop(config.prepareTimeMs)
         } else {
-            startEpoch = System.currentTimeMillis()
+            startEpoch = wallClockTimeSource()
             startElapsed = timeSource.elapsedRealtime()
             _state.value = TimerState.RUNNING
             startTickLoop()
@@ -97,7 +99,7 @@ class TimerEngine(
         val currentConfig = config ?: return null
         timerJob?.cancel()
         val elapsed = _elapsedMs.value
-        val endEpoch = System.currentTimeMillis()
+        val endEpoch = wallClockTimeSource()
         val result = TimerResult(
             projectId = currentConfig.projectId,
             startTimeEpoch = startEpoch,
@@ -111,6 +113,40 @@ class TimerEngine(
     fun cancel() {
         timerJob?.cancel()
         reset()
+    }
+
+    fun restore(session: ResolvedActiveTimerSession) {
+        timerJob?.cancel()
+        config = session.config
+        startEpoch = session.sessionStartEpochMs ?: 0L
+        startElapsed = timeSource.elapsedRealtime()
+        pausedElapsedMs = session.elapsedMs
+        lastAnnouncedMs = session.lastAnnouncedElapsedMs
+        completionPending = session.shouldComplete
+        _elapsedMs.value = session.elapsedMs
+        _remainingMs.value = session.remainingMs
+        _prepareRemainingMs.value = session.prepareRemainingMs
+
+        when {
+            session.shouldComplete -> {
+                _state.value = TimerState.PAUSED
+                _shouldAnnounce.tryEmit(-1L)
+            }
+
+            session.state == TimerState.PREPARING -> {
+                _state.value = TimerState.PREPARING
+                startPrepareLoop(session.prepareRemainingMs ?: 0L)
+            }
+
+            session.state == TimerState.RUNNING -> {
+                _state.value = TimerState.RUNNING
+                startTickLoop()
+            }
+
+            else -> {
+                _state.value = TimerState.PAUSED
+            }
+        }
     }
 
     private fun reset() {
@@ -134,7 +170,7 @@ class TimerEngine(
                 _prepareRemainingMs.value = remaining
                 if (remaining == 0L) {
                     _prepareRemainingMs.value = null
-                    startEpoch = System.currentTimeMillis()
+                    startEpoch = wallClockTimeSource()
                     startElapsed = timeSource.elapsedRealtime()
                     _state.value = TimerState.RUNNING
                     startTickLoop()

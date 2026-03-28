@@ -8,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -76,6 +77,52 @@ class ProjectEditViewModelTest {
         assertTrue(viewModel.vibrationEnabled.value)
         assertEquals("60", viewModel.voiceIntervalSeconds.value)
         assertEquals("5", viewModel.prepareTimeSeconds.value)
+    }
+
+    @Test
+    fun deleteProject_inCreateModeEmitsCompletionWithoutPersisting() = runTest(dispatcher) {
+        val dao = FakeProjectDao()
+        val repository = ProjectRepository(dao)
+        val viewModel = ProjectEditViewModel(projectId = null, projectRepository = repository)
+        val completions = mutableListOf<Boolean>()
+        val collector = launch { viewModel.saveResult.collect { completions.add(it) } }
+
+        viewModel.projectName.value = "Unsaved"
+        viewModel.deleteProject()
+        advanceUntilIdle()
+
+        assertTrue(dao.projects.value.isEmpty())
+        assertEquals(listOf(true), completions)
+        collector.cancel()
+    }
+
+    @Test
+    fun deleteProject_inEditModeDeletesProjectAndEmitsCompletion() = runTest(dispatcher) {
+        val dao = FakeProjectDao()
+        val existingProject = ProjectEntity(
+            id = 9L,
+            name = "Delete Me",
+            timerMode = "COUNT_UP",
+            defaultDurationMs = null,
+            voiceIntervalMs = 30_000L,
+            vibrationEnabled = false,
+            prepareTimeSeconds = null,
+            createdAt = 10L,
+            updatedAt = 20L
+        )
+        dao.seed(existingProject)
+        val repository = ProjectRepository(dao)
+        val viewModel = ProjectEditViewModel(projectId = 9L, projectRepository = repository)
+        val completions = mutableListOf<Boolean>()
+        val collector = launch { viewModel.saveResult.collect { completions.add(it) } }
+        advanceUntilIdle()
+
+        viewModel.deleteProject()
+        advanceUntilIdle()
+
+        assertTrue(dao.projects.value.isEmpty())
+        assertEquals(listOf(true), completions)
+        collector.cancel()
     }
 }
 

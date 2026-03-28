@@ -18,9 +18,12 @@ import com.example.whispertime.timer.TimerConfig
 import com.example.whispertime.timer.TimerEngine
 import com.example.whispertime.timer.TimerMode
 import com.example.whispertime.timer.TimerState
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -47,6 +50,8 @@ class TimerViewModel(
 
     private val _config = MutableStateFlow<TimerConfig?>(null)
     val config: StateFlow<TimerConfig?> = _config.asStateFlow()
+    private val _deleteResult = MutableSharedFlow<Boolean>()
+    val deleteResult: SharedFlow<Boolean> = _deleteResult.asSharedFlow()
 
     val timerState: StateFlow<TimerState> = timerEngine.state
     val elapsedMs: StateFlow<Long> = timerEngine.elapsedMs
@@ -166,6 +171,18 @@ class TimerViewModel(
             action = TimerForegroundService.ACTION_CANCEL
         }
         appContext.startService(intent)
+    }
+
+    fun deleteCurrentProject() {
+        val currentProject = project ?: return
+
+        viewModelScope.launch {
+            if (timerState.value != TimerState.IDLE) {
+                cancelTimer()
+            }
+            projectRepository.deleteProject(currentProject)
+            _deleteResult.emit(true)
+        }
     }
 
     fun deleteRecord(record: TimingRecordEntity) {

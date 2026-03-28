@@ -100,6 +100,18 @@ class ProjectEditViewModel(
         }
     }
 
+    fun deleteProject() {
+        viewModelScope.launch {
+            if (isEditMode && projectId != null) {
+                val original = projectRepository.getProjectById(projectId).firstOrNull()
+                if (original != null) {
+                    projectRepository.deleteProject(original)
+                }
+            }
+            _saveResult.emit(true)
+        }
+    }
+
     companion object {
         fun factory(application: Application, projectId: Long?): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {

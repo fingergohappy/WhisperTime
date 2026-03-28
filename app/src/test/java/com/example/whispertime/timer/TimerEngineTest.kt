@@ -1,5 +1,6 @@
 package com.example.whispertime.timer
 
+import com.example.whispertime.service.ActiveTimerSession
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -177,6 +178,46 @@ class TimerEngineTest {
 
         assertTrue(announcements.size >= 2)
         collectorJob.cancel()
+        engine.cancel()
+    }
+
+    @Test
+    fun restore_runningCountdown_recomputesRemainingTime() = runTest(UnconfinedTestDispatcher()) {
+        var fakeTime = 5_500L
+        val engine = TimerEngine(
+            timeSource = TimeSource { fakeTime },
+            coroutineScope = this
+        )
+        val resolved = ActiveTimerSessionResolver.resolve(
+            session = ActiveTimerSession(
+                projectId = 1L,
+                projectName = "Restore",
+                mode = TimerMode.COUNTDOWN,
+                durationMs = 12_000L,
+                voiceIntervalMs = 3_000L,
+                vibrationEnabled = false,
+                state = TimerState.RUNNING,
+                prepareRemainingMs = null,
+                prepareReferenceEpochMs = null,
+                prepareReferenceElapsedRealtimeMs = null,
+                sessionStartEpochMs = 100_000L,
+                elapsedMs = 4_000L,
+                runningReferenceElapsedRealtimeMs = 2_000L,
+                lastAnnouncedElapsedMs = 3_000L
+            ),
+            nowElapsedRealtimeMs = fakeTime
+        )
+
+        engine.restore(resolved)
+
+        assertEquals(TimerState.RUNNING, engine.state.value)
+        assertEquals(7_500L, engine.elapsedMs.value)
+        assertEquals(4_500L, engine.remainingMs.value)
+
+        fakeTime = 6_500L
+        advanceTimeBy(200L)
+
+        assertTrue((engine.remainingMs.value ?: 0L) < 4_500L)
         engine.cancel()
     }
 }
