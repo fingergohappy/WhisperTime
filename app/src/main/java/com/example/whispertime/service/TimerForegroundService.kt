@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.whispertime.WhisperTimeApplication
@@ -527,7 +528,9 @@ class TimerForegroundService : Service() {
         ).apply {
             setReferenceCounted(false)
         }
-        wakeLock?.acquire()
+        // 设置10分钟超时，到期后自动重新获取
+        wakeLock?.acquire(10 * 60 * 1000L)
+        Log.d(tag, "acquireWakeLock(): acquired with 10min timeout")
     }
 
     private fun releaseWakeLock() {

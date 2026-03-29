@@ -1,6 +1,10 @@
 package com.example.whispertime.tts
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -17,6 +21,26 @@ class VoiceAnnouncementManager(private val context: Context) {
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
     private val pendingQueue = ArrayDeque<String>()
+
+    private val audioManager: AudioManager by lazy {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasAudioFocus = false
+
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        Log.d(tag, "audioFocusChange: $focusChange")
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT -> {
+                hasAudioFocus = true
+            }
+            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                hasAudioFocus = false
+            }
+        }
+    }
 
     fun init() {
         Log.d(tag, "init(): begin; wasReady=${_isReady.value}")
@@ -51,18 +75,29 @@ class VoiceAnnouncementManager(private val context: Context) {
 
                         override fun onDone(utteranceId: String) {
                             Log.d(tag, "utterance onDone id=$utteranceId")
+                            abandonAudioFocusIfNeeded()
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String) {
                             Log.e(tag, "utterance onError id=$utteranceId")
+                            abandonAudioFocusIfNeeded()
                         }
 
                         override fun onError(utteranceId: String, errorCode: Int) {
                             Log.e(tag, "utterance onError id=$utteranceId errorCode=$errorCode")
+                            abandonAudioFocusIfNeeded()
                         }
                     }
                 )
+
+                // 设置AudioAttributes确保熄屏时也能播放
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts?.setAudioAttributes(audioAttributes)
+                Log.d(tag, "onInit(): AudioAttributes set to USAGE_ALARM")
 
                 _isReady.value = ready
                 if (ready) {
@@ -88,6 +123,7 @@ class VoiceAnnouncementManager(private val context: Context) {
             pendingQueue.addLast(text)
             return
         }
+        requestAudioFocus()
         val utteranceId = "whispertime_${System.currentTimeMillis()}"
         Log.d(tag, "speak(QUEUE_FLUSH): id=$utteranceId text=$text")
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
@@ -99,9 +135,54 @@ class VoiceAnnouncementManager(private val context: Context) {
             pendingQueue.addLast(text)
             return
         }
+        requestAudioFocus()
         val utteranceId = "whispertime_${System.currentTimeMillis()}"
         Log.d(tag, "speak(QUEUE_ADD): id=$utteranceId text=$text")
         tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+    }
+
+    private fun requestAudioFocus() {
+        if (hasAudioFocus) return
+        try {
+            val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(audioAttributes)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+                audioManager.requestAudioFocus(audioFocusRequest!!)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    audioFocusChangeListener,
+                    AudioManager.STREAM_ALARM,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                )
+            }
+            hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            Log.d(tag, "requestAudioFocus(): result=$result hasFocus=$hasAudioFocus")
+        } catch (e: Exception) {
+            Log.e(tag, "requestAudioFocus(): failed", e)
+        }
+    }
+
+    private fun abandonAudioFocusIfNeeded() {
+        if (!hasAudioFocus) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(audioFocusChangeListener)
+            }
+            hasAudioFocus = false
+            Log.d(tag, "abandonAudioFocusIfNeeded(): abandoned")
+        } catch (e: Exception) {
+            Log.e(tag, "abandonAudioFocusIfNeeded(): failed", e)
+        }
     }
 
     fun announceElapsed(elapsedMs: Long) {
@@ -127,6 +208,7 @@ class VoiceAnnouncementManager(private val context: Context) {
         tts?.shutdown()
         tts = null
         _isReady.value = false
+        abandonAudioFocusIfNeeded()
         Log.d(tag, "shutdown(): done")
     }
 
@@ -134,6 +216,7 @@ class VoiceAnnouncementManager(private val context: Context) {
         Log.d(tag, "stopSpeaking(): begin")
         pendingQueue.clear()
         tts?.stop()
+        abandonAudioFocusIfNeeded()
         Log.d(tag, "stopSpeaking(): done")
     }
 
