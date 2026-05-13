@@ -91,13 +91,13 @@ class VoiceAnnouncementManager(private val context: Context) {
                     }
                 )
 
-                // 设置AudioAttributes确保熄屏时也能播放
+                // 设置AudioAttributes：使用MEDIA类型，确保耳机连接时声音只从耳机播放
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
                 tts?.setAudioAttributes(audioAttributes)
-                Log.d(tag, "onInit(): AudioAttributes set to USAGE_ALARM")
+                Log.d(tag, "onInit(): AudioAttributes set to USAGE_MEDIA")
 
                 _isReady.value = ready
                 if (ready) {
@@ -146,7 +146,7 @@ class VoiceAnnouncementManager(private val context: Context) {
         try {
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
                 audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
@@ -158,7 +158,7 @@ class VoiceAnnouncementManager(private val context: Context) {
                 @Suppress("DEPRECATION")
                 audioManager.requestAudioFocus(
                     audioFocusChangeListener,
-                    AudioManager.STREAM_ALARM,
+                    AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
                 )
             }

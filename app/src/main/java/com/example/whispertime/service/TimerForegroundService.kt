@@ -10,9 +10,11 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
-import android.provider.Settings
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.TimingRecordEntity
 import com.example.whispertime.data.repository.TimingRecordRepository
@@ -55,6 +57,8 @@ class TimerForegroundService : Service() {
     private var vibrationEnabled: Boolean = false
     private var autoCompletionInProgress = false
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wakeLockRefreshJob: Job? = null
+    private var mediaSession: MediaSessionCompat? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -66,6 +70,7 @@ class TimerForegroundService : Service() {
         voiceManager = container.voiceAnnouncementManager
         vibrationManager = container.vibrationManager
         createNotificationChannel()
+        initMediaSession()
         restorePersistedSessionIfNeeded()
     }
 
@@ -103,8 +108,11 @@ class TimerForegroundService : Service() {
         notificationJob?.cancel()
         completionJob?.cancel()
         announcementJob?.cancel()
+        wakeLockRefreshJob?.cancel()
         vibrationManager.cancel()
         releaseWakeLock()
+        mediaSession?.release()
+        mediaSession = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -322,6 +330,8 @@ class TimerForegroundService : Service() {
                 TimerMode.COUNT_UP -> formatTime(timerEngine.elapsedMs.value)
             }
         }
+        updateMediaSessionPlaybackState(state)
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentProjectName)
             .setContentText(displayTime)
@@ -329,7 +339,7 @@ class TimerForegroundService : Service() {
             .setOngoing(true)
             .setSilent(true)
 
-        if (state == TimerState.RUNNING) {
+        if (state == TimerState.RUNNING || state == TimerState.PREPARING) {
             builder.addAction(
                 0,
                 "暂停",
@@ -348,6 +358,14 @@ class TimerForegroundService : Service() {
             "停止",
             buildActionPendingIntent(ACTION_STOP, 2)
         )
+
+        mediaSession?.let { session ->
+            builder.setStyle(
+                MediaStyle()
+                    .setMediaSession(session.sessionToken)
+                    .setShowActionsInCompactView(0)
+            )
+        }
 
         return builder.build()
     }
@@ -374,6 +392,54 @@ class TimerForegroundService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
+    }
+
+    private fun initMediaSession() {
+        mediaSession = MediaSessionCompat(this, "WhisperTimer").apply {
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onPause() {
+                    if (timerEngine.state.value == TimerState.RUNNING) {
+                        timerEngine.pause()
+                        persistPausedSession()
+                        updateWakeLockForState(timerEngine.state.value)
+                        updateNotification()
+                    }
+                }
+
+                override fun onPlay() {
+                    if (timerEngine.state.value == TimerState.PAUSED) {
+                        timerEngine.resume()
+                        persistRunningSession()
+                        updateWakeLockForState(timerEngine.state.value)
+                        startNotificationUpdates()
+                    }
+                }
+
+                override fun onStop() {
+                    handleStop()
+                }
+            })
+            isActive = true
+        }
+    }
+
+    private fun updateMediaSessionPlaybackState(state: TimerState) {
+        val session = mediaSession ?: return
+        val playbackState = when (state) {
+            TimerState.RUNNING, TimerState.PREPARING -> PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1f)
+                .setActions(PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_STOP)
+                .build()
+            TimerState.PAUSED -> PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
+                .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_STOP)
+                .build()
+            else -> PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_STOPPED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0f)
+                .setActions(0L)
+                .build()
+        }
+        session.setPlaybackState(playbackState)
     }
 
     private fun restorePersistedSessionIfNeeded() {
@@ -514,13 +580,15 @@ class TimerForegroundService : Service() {
     private fun updateWakeLockForState(state: TimerState) {
         if (state == TimerState.PREPARING || state == TimerState.RUNNING) {
             acquireWakeLock()
+            startWakeLockRefresh()
         } else {
+            wakeLockRefreshJob?.cancel()
+            wakeLockRefreshJob = null
             releaseWakeLock()
         }
     }
 
     private fun acquireWakeLock() {
-        if (wakeLock?.isHeld == true) return
         val powerManager = getSystemService(PowerManager::class.java)
         wakeLock = wakeLock ?: powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
@@ -528,12 +596,36 @@ class TimerForegroundService : Service() {
         ).apply {
             setReferenceCounted(false)
         }
-        // 设置10分钟超时，到期后自动重新获取
+        if (wakeLock?.isHeld == true) return
         wakeLock?.acquire(10 * 60 * 1000L)
         Log.d(tag, "acquireWakeLock(): acquired with 10min timeout")
     }
 
+    private fun startWakeLockRefresh() {
+        if (wakeLockRefreshJob?.isActive == true) return
+        wakeLockRefreshJob = serviceScope.launch {
+            delay(9 * 60 * 1000L)
+            while (isActive) {
+                val state = timerEngine.state.value
+                if (state == TimerState.PREPARING || state == TimerState.RUNNING) {
+                    releaseWakeLockInternal()
+                    acquireWakeLock()
+                } else {
+                    cancel()
+                    return@launch
+                }
+                delay(9 * 60 * 1000L)
+            }
+        }
+    }
+
     private fun releaseWakeLock() {
+        wakeLockRefreshJob?.cancel()
+        wakeLockRefreshJob = null
+        releaseWakeLockInternal()
+    }
+
+    private fun releaseWakeLockInternal() {
         val lock = wakeLock ?: return
         if (lock.isHeld) {
             lock.release()
