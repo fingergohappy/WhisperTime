@@ -6,6 +6,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+/** 应用 Material 字体排版配置。 */
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Monospace,

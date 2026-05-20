@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+GRADLEW="$ROOT_DIR/gradlew"
+LOCAL_PROPERTIES="$ROOT_DIR/local.properties"
+CACHE_DIR="$ROOT_DIR/.lsp/kls-classpath"
+INIT_SCRIPT="$CACHE_DIR/print-debug-classpath.gradle"
+AAR_DIR="$CACHE_DIR/aar-classes"
+
+read_sdk_dir() {
+  if [ -f "$LOCAL_PROPERTIES" ]; then
+    awk -F= '$1 == "sdk.dir" { print $2; exit }' "$LOCAL_PROPERTIES"
+    return
+  fi
+
+  if [ -n "${ANDROID_HOME:-}" ]; then
+    printf '%s\n' "$ANDROID_HOME"
+    return
+  fi
+
+  if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
+    printf '%s\n' "$ANDROID_SDK_ROOT"
+  fi
+}
+
+latest_android_jar() {
+  local sdk_dir="$1"
+  local platforms_dir="$sdk_dir/platforms"
+
+  if [ ! -d "$platforms_dir" ]; then
+    return
+  fi
+
+  find "$platforms_dir" -maxdepth 2 -name android.jar -type f \
+    | sort -V \
+    | tail -n 1
+}
+
+ensure_init_script() {
+  mkdir -p "$CACHE_DIR" "$AAR_DIR"
+
+  cat >"$INIT_SCRIPT" <<'GRADLE'
+allprojects { project ->
+    tasks.register('printKotlinLspDebugClasspath') {
+        doLast {
+            def configuration = project.configurations.findByName('debugCompileClasspath')
+                ?: project.configurations.findByName('compileClasspath')
+
+            if (configuration == null) {
+                return
+            }
+
+            configuration.resolve().each {
+                println it.absolutePath
+            }
+        }
+    }
+}
+GRADLE
+}
+
+gradle_classpath() {
+  ensure_init_script
+  "$GRADLEW" -I "$INIT_SCRIPT" :app:printKotlinLspDebugClasspath --quiet 2>/dev/null || true
+}
+
+aar_cache_key() {
+  local aar="$1"
+  shasum -a 256 "$aar" | awk '{ print $1 }'
+}
+
+append_path() {
+  local path="$1"
+
+  if [ -z "$path" ] || [ ! -e "$path" ]; then
+    return
+  fi
+
+  if [ -z "${OUTPUT:-}" ]; then
+    OUTPUT="$path"
+  else
+    OUTPUT="$OUTPUT:$path"
+  fi
+}
+
+append_aar_entries() {
+  local aar="$1"
+  local key
+  local out_dir
+
+  key="$(aar_cache_key "$aar")"
+  out_dir="$AAR_DIR/$key"
+  mkdir -p "$out_dir"
+
+  if [ ! -f "$out_dir/.complete" ]; then
+    rm -rf "$out_dir"
+    mkdir -p "$out_dir"
+    unzip -qq -j "$aar" 'classes.jar' -d "$out_dir" 2>/dev/null || true
+    unzip -qq "$aar" 'libs/*.jar' -d "$out_dir" 2>/dev/null || true
+    touch "$out_dir/.complete"
+  fi
+
+  append_path "$out_dir/classes.jar"
+  while IFS= read -r jar; do
+    append_path "$jar"
+  done < <(find "$out_dir/libs" -type f -name '*.jar' 2>/dev/null | sort)
+}
+
+OUTPUT=""
+
+sdk_dir="$(read_sdk_dir)"
+if [ -n "$sdk_dir" ]; then
+  append_path "$(latest_android_jar "$sdk_dir")"
+fi
+
+while IFS= read -r entry; do
+  case "$entry" in
+    *.aar)
+      append_aar_entries "$entry"
+      ;;
+    *.jar|*/)
+      append_path "$entry"
+      ;;
+  esac
+done < <(gradle_classpath)
+
+printf '%s\n' "$OUTPUT"

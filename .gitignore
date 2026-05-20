@@ -16,3 +16,5 @@ local.properties
 .sisyphus/
 .worktrees/
 .idea/
+.lsp/
+kls_database.db

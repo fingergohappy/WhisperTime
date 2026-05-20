@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import com.example.whispertime.navigation.WhisperTimeNavHost
 import com.example.whispertime.ui.theme.WhisperTimeTheme
 
+/** 应用唯一 Activity，负责挂载 Compose 主题和导航入口。 */
 class MainActivity : ComponentActivity() {
+    /** 初始化沉浸式窗口并创建应用的 Compose 内容树。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

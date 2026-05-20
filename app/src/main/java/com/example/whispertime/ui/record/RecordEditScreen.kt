@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/** 记录编辑页面，允许用户修改开始时间、结束时间和持续时长。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordEditScreen(
@@ -44,6 +45,7 @@ fun RecordEditScreen(
     val endTime by viewModel.endTimeText.collectAsState()
     val duration by viewModel.durationText.collectAsState()
 
+    // 保存成功后返回记录列表，失败时留在当前页面供用户继续修改。
     LaunchedEffect(Unit) {
         viewModel.saveResult.collect { success ->
             if (success) {

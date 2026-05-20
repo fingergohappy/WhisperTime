@@ -10,6 +10,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
+/** 深色模式配色方案。 */
 private val DarkColorScheme = darkColorScheme(
     primary = Indigo400,
     onPrimary = Mist50,
@@ -28,6 +29,7 @@ private val DarkColorScheme = darkColorScheme(
     outline = Obsidian700
 )
 
+/** 浅色模式配色方案，目前沿用深色视觉基调。 */
 private val LightColorScheme = lightColorScheme(
     primary = Indigo500,
     onPrimary = Mist50,
@@ -46,18 +48,20 @@ private val LightColorScheme = lightColorScheme(
     outline = Obsidian700
 )
 
+/** 应用主题入口，统一 Material 配色、字体和系统导航栏颜色。 */
 @Composable
 fun WhisperTimeTheme(
     darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    /** 当前实际使用的 Material 配色。 */
     val colorScheme = when {
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    // Set navigation bar color to match background
+    // 让系统导航栏颜色和应用背景保持一致，避免底部出现突兀色块。
     val view = androidx.compose.ui.platform.LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

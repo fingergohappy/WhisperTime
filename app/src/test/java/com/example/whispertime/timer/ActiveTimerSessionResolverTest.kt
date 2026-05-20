@@ -6,8 +6,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** 活跃计时会话恢复器测试，覆盖准备、运行、暂停和倒计时完成边界。 */
 class ActiveTimerSessionResolverTest {
 
+    /** 验证准备阶段恢复时会扣除离开期间流逝的准备时间。 */
     @Test
     fun preparing_restoresRemainingPrepareTime() {
         val session = ActiveTimerSession(
@@ -35,6 +37,7 @@ class ActiveTimerSessionResolverTest {
         assertFalse(resolved.shouldComplete)
     }
 
+    /** 验证准备阶段在后台结束时会恢复为运行状态。 */
     @Test
     fun preparing_thatExpiresWhileAway_restoresRunningState() {
         val session = ActiveTimerSession(
@@ -63,6 +66,7 @@ class ActiveTimerSessionResolverTest {
         assertFalse(resolved.shouldComplete)
     }
 
+    /** 验证运行阶段恢复时会从参考时钟补齐已计时时长。 */
     @Test
     fun running_restoresElapsedFromReferencePoint() {
         val session = ActiveTimerSession(
@@ -90,6 +94,7 @@ class ActiveTimerSessionResolverTest {
         assertEquals(3_000L, resolved.lastAnnouncedElapsedMs)
     }
 
+    /** 验证暂停阶段恢复时不会继续累加离开期间的时间。 */
     @Test
     fun paused_keepsFrozenElapsedTime() {
         val session = ActiveTimerSession(
@@ -116,6 +121,7 @@ class ActiveTimerSessionResolverTest {
         assertEquals(6_000L, resolved.lastAnnouncedElapsedMs)
     }
 
+    /** 验证倒计时在后台运行到期时会请求完成处理。 */
     @Test
     fun countdown_thatExpiredWhileRunning_requestsCompletion() {
         val session = ActiveTimerSession(

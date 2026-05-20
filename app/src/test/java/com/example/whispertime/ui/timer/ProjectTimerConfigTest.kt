@@ -5,8 +5,10 @@ import com.example.whispertime.timer.TimerMode
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** 项目实体转计时配置测试。 */
 class ProjectTimerConfigTest {
 
+    /** 验证项目震动开关会传递到计时配置。 */
     @Test
     fun toTimerConfig_carriesVibrationSetting() {
         val project = ProjectEntity(

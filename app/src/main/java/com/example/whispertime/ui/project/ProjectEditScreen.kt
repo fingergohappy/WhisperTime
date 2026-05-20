@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/** 项目编辑页面，提供新建、编辑、删除项目和计时默认配置的表单。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectEditScreen(
@@ -63,6 +64,7 @@ fun ProjectEditScreen(
     val prepareTime by viewModel.prepareTimeSeconds.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // 保存或删除成功后统一返回上一页。
     LaunchedEffect(Unit) {
         viewModel.saveResult.collect { success ->
             if (success) {
@@ -128,7 +130,8 @@ fun ProjectEditScreen(
             if (timerMode == "COUNTDOWN") {
                 OutlinedTextField(
                     value = defaultDuration,
-                    onValueChange = { 
+                    onValueChange = {
+                        // 倒计时时长仅允许输入数字，避免保存时出现无效格式。
                         if (it.all { char -> char.isDigit() }) {
                             viewModel.defaultDurationMinutes.value = it
                         }
@@ -149,6 +152,7 @@ fun ProjectEditScreen(
             OutlinedTextField(
                 value = voiceInterval,
                 onValueChange = {
+                    // 语音间隔使用秒数输入，只接受数字。
                     if (it.all { char -> char.isDigit() }) {
                         viewModel.voiceIntervalSeconds.value = it
                     }
@@ -183,6 +187,7 @@ fun ProjectEditScreen(
             OutlinedTextField(
                 value = prepareTime,
                 onValueChange = {
+                    // 准备时间使用秒数输入，只接受数字。
                     if (it.all { char -> char.isDigit() }) {
                         viewModel.prepareTimeSeconds.value = it
                     }

@@ -22,6 +22,7 @@ import com.example.whispertime.ui.record.RecordListScreen
 import com.example.whispertime.ui.timer.TimerHomeScreen
 import com.example.whispertime.ui.timer.TimerScreen
 
+/** 判断项目切换方向，用于计时页左右滑动转场。 */
 private fun isForwardProjectSwitch(initialProjectId: Long?, targetProjectId: Long?): Boolean? {
     if (initialProjectId == null || targetProjectId == null || initialProjectId == targetProjectId) {
         return null
@@ -29,6 +30,7 @@ private fun isForwardProjectSwitch(initialProjectId: Long?, targetProjectId: Lon
     return targetProjectId > initialProjectId
 }
 
+/** 应用导航宿主，集中声明所有页面路由和页面间跳转。 */
 @Composable
 fun WhisperTimeNavHost(navController: NavHostController = rememberNavController()) {
     NavHost(
@@ -77,6 +79,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
                 }
             )
         ) { backStackEntry ->
+            // "new" 代表新建项目，数字字符串代表编辑已有项目。
             val projectIdStr = backStackEntry.arguments?.getString("projectId")
             val projectId = if (projectIdStr == "new" || projectIdStr == null) null else projectIdStr.toLongOrNull()
             
@@ -96,6 +99,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
             enterTransition = {
                 val initialProjectId = initialState.arguments?.getLong("projectId")
                 val targetProjectId = targetState.arguments?.getLong("projectId")
+                // 相邻项目切换时按项目顺序决定左右滑入方向。
                 when (isForwardProjectSwitch(initialProjectId, targetProjectId)) {
                     true -> slideInHorizontally(animationSpec = tween(240)) { it / 3 } + fadeIn(animationSpec = tween(220))
                     false -> slideInHorizontally(animationSpec = tween(240)) { -it / 3 } + fadeIn(animationSpec = tween(220))
@@ -105,6 +109,7 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
             exitTransition = {
                 val initialProjectId = initialState.arguments?.getLong("projectId")
                 val targetProjectId = targetState.arguments?.getLong("projectId")
+                // 退出动画与进入方向相反，保持项目切换的空间感。
                 when (isForwardProjectSwitch(initialProjectId, targetProjectId)) {
                     true -> slideOutHorizontally(animationSpec = tween(220)) { -it / 3 } + fadeOut(animationSpec = tween(180))
                     false -> slideOutHorizontally(animationSpec = tween(220)) { it / 3 } + fadeOut(animationSpec = tween(180))

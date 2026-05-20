@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whispertime.ui.project.ProjectListViewModel
 
+/** 计时首页，根据是否存在项目自动跳转到计时页或展示新建入口。 */
 @Composable
 fun TimerHomeScreen(
     onNavigateToTimer: (Long) -> Unit,
@@ -26,6 +27,7 @@ fun TimerHomeScreen(
         factory = ProjectListViewModel.factory(LocalContext.current.applicationContext as Application)
     )
 ) {
+    /** 当前项目列表状态。 */
     val projects by projectListViewModel.projects.collectAsState()
 
     if (projects.isEmpty()) {
@@ -39,6 +41,7 @@ fun TimerHomeScreen(
         return
     }
 
+    // 有项目时自动进入第一个项目的计时页，减少用户启动后的额外点击。
     val firstProject = projects.first()
     LaunchedEffect(firstProject.id) {
         onNavigateToTimer(firstProject.id)

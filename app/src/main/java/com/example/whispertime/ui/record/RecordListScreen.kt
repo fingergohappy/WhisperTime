@@ -56,6 +56,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** 记录列表页面，展示项目统计、历史记录和批量选择删除能力。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordListScreen(
@@ -78,6 +79,7 @@ fun RecordListScreen(
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
     val selectedIds by viewModel.selectedRecordIds.collectAsState()
 
+    // 选择模式下返回键先退出选择，不直接离开页面。
     BackHandler(enabled = isSelectionMode) {
         viewModel.exitSelectionMode()
     }
@@ -228,6 +230,7 @@ fun RecordListScreen(
     }
 }
 
+/** 统计卡片，汇总总时长、平均时长和记录数。 */
 @Composable
 private fun StatsCard(totalDurationMs: Long, averageDurationMs: Long, recordCount: Int) {
     Card(
@@ -254,6 +257,7 @@ private fun StatsCard(totalDurationMs: Long, averageDurationMs: Long, recordCoun
     }
 }
 
+/** 统计卡片中的单行标签和值。 */
 @Composable
 private fun StatRow(label: String, value: String) {
     Row(
@@ -265,6 +269,7 @@ private fun StatRow(label: String, value: String) {
     }
 }
 
+/** 单条计时记录项，支持点击编辑、长按选择和删除。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecordItem(
@@ -328,6 +333,7 @@ private fun RecordItem(
     }
 }
 
+/** 将毫秒时长格式化为记录列表展示文案。 */
 private fun formatDuration(ms: Long): String {
     val totalSeconds = (ms / 1000).coerceAtLeast(0)
     val hours = totalSeconds / 3600
@@ -338,10 +344,12 @@ private fun formatDuration(ms: Long): String {
     else "${seconds}s"
 }
 
+/** 将时间戳格式化为日期。 */
 private fun formatDate(epochMs: Long): String {
     return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(epochMs))
 }
 
+/** 将时间戳格式化为时分秒。 */
 private fun formatClock(epochMs: Long): String {
     return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(epochMs))
 }

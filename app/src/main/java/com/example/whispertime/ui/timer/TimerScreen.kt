@@ -2,8 +2,13 @@ package com.example.whispertime.ui.timer
 
 import android.Manifest
 import android.app.Application
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -113,24 +118,78 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** 计时页主内容模式。 */
 private enum class TimerViewMode {
+    /** 计时主页面。 */
     TIMER,
+
+    /** 项目设置页面。 */
     SETTINGS
 }
 
+/** 底部面板标签页。 */
 private enum class BottomTab {
+    /** 历史记录标签页。 */
     HISTORY,
+
+    /** 统计数据标签页。 */
     STATS
 }
 
+/** 底部面板展开状态。 */
 private enum class BottomPanelState {
+    /** 仅显示拖拽把手。 */
     COLLAPSED,
+
+    /** 半屏展示。 */
     HALF,
+
+    /** 近似全屏展示。 */
     EXPANDED
 }
 
+/** 底部面板统一圆角形状。 */
 private val PanelShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp)
 
+/** 电池优化提示偏好文件名。 */
+private const val BATTERY_EXEMPTION_PREFS = "battery_exemption_prompt"
+
+/** 是否已经请求过忽略电池优化的标记 key。 */
+private const val KEY_BATTERY_EXEMPTION_REQUESTED = "requested"
+
+/** 必要时请求用户将应用加入电池优化白名单，以提高长时间后台计时稳定性。 */
+private fun requestBatteryOptimizationExemptionIfNeeded(context: Context) {
+    val powerManager = context.getSystemService(PowerManager::class.java)
+    if (powerManager.isIgnoringBatteryOptimizations(context.packageName)) return
+
+    val preferences = context.getSharedPreferences(BATTERY_EXEMPTION_PREFS, Context.MODE_PRIVATE)
+    if (preferences.getBoolean(KEY_BATTERY_EXEMPTION_REQUESTED, false)) return
+
+    // 先记录已请求，避免用户拒绝后每次进入计时页都被打扰。
+    preferences.edit().putBoolean(KEY_BATTERY_EXEMPTION_REQUESTED, true).apply()
+
+    val packageUri = Uri.parse("package:${context.packageName}")
+    val requestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+        data = packageUri
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = packageUri
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    val requestStarted = runCatching {
+        context.startActivity(requestIntent)
+    }.isSuccess
+    if (!requestStarted) {
+        // 部分 ROM 不支持白名单请求页时，退回到应用详情页让用户手动设置。
+        runCatching {
+            context.startActivity(fallbackIntent)
+        }
+    }
+}
+
+/** 计时主页面，承载计时圆盘、项目切换、设置、历史记录和统计面板。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerScreen(
@@ -147,6 +206,7 @@ fun TimerScreen(
     )
 ) {
     val context = LocalContext.current
+    // 订阅计时状态和项目数据，驱动页面的所有可视状态。
     val timerState by viewModel.timerState.collectAsState()
     val elapsedMs by viewModel.elapsedMs.collectAsState()
     val remainingMs by viewModel.remainingMs.collectAsState()
@@ -160,18 +220,22 @@ fun TimerScreen(
     val averageDurationMs by viewModel.averageDurationMs.collectAsState()
     val weeklyStats by viewModel.weeklyStats.collectAsState()
 
+    /** 通知权限请求 launcher。 */
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
 
+    // 首次进入计时页时请求通知权限和电池优化豁免。
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        requestBatteryOptimizationExemptionIfNeeded(context)
     }
 
+    // 页面交互状态。
     var viewMode by remember { mutableStateOf(TimerViewMode.TIMER) }
     var showDrawer by remember { mutableStateOf(false) }
     var bottomPanelState by remember(projectId) { mutableStateOf(BottomPanelState.HALF) }
@@ -180,6 +244,7 @@ fun TimerScreen(
     var editDurationSeconds by remember { mutableStateOf("") }
     var showDeleteProjectDialog by remember { mutableStateOf(false) }
 
+    // 当前项目的可编辑计时配置状态。
     var selectedMode by remember { mutableStateOf(TimerMode.COUNT_UP) }
     var countdownSecondsText by remember { mutableStateOf("180") }
     var prepareSecondsText by remember { mutableStateOf("5") }
@@ -189,6 +254,7 @@ fun TimerScreen(
     var initialized by remember { mutableStateOf(false) }
     var projectSwipeAccumulator by remember(projectId) { mutableFloatStateOf(0f) }
 
+    // 项目配置变化时刷新设置输入；运行中的计时不覆盖用户正在使用的配置。
     LaunchedEffect(config) {
         val current = config ?: return@LaunchedEffect
         if (!initialized || timerState == TimerState.IDLE) {
@@ -202,6 +268,7 @@ fun TimerScreen(
         }
     }
 
+    // 计时状态派生字段，避免 UI 分支重复判断。
     val isRunning = timerState == TimerState.RUNNING
     val isPreparing = timerState == TimerState.PREPARING
     val isPaused = timerState == TimerState.PAUSED
@@ -211,12 +278,14 @@ fun TimerScreen(
     val stageLayout = timerStageLayout(timerState)
     val circleUiState = timerCircleUiState(timerState)
 
+    // 进入运行、准备或暂停时收起底部面板到半屏，让计时圆盘获得焦点。
     LaunchedEffect(isTimerFocused) {
         if (isTimerFocused) {
             bottomPanelState = BottomPanelState.HALF
         }
     }
 
+    // 项目被删除后返回上一页。
     LaunchedEffect(Unit) {
         viewModel.deleteResult.collect { deleted ->
             if (deleted) {
@@ -227,12 +296,14 @@ fun TimerScreen(
 
     val canOpenSettings = !isRunning && !isPreparing
 
+    // 圆盘中央展示的秒数，准备态展示准备剩余，倒计时展示剩余，正计时展示已过。
     val displaySeconds = when {
         isPreparing -> ((prepareRemainingMs ?: 0L) + 999L) / 1000L
         selectedMode == TimerMode.COUNTDOWN -> ((remainingMs ?: 0L) / 1000L).coerceAtLeast(0L)
         else -> (elapsedMs / 1000L).coerceAtLeast(0L)
     }
 
+    // 环形进度按不同模式映射到 0..1。
     val ringProgressTarget = when {
         isPreparing -> {
             val total = prepareSecondsText.toLongOrNull()?.coerceAtLeast(1L) ?: 1L
@@ -264,27 +335,34 @@ fun TimerScreen(
         animationSpec = tween(durationMillis = ringAnimationDuration),
         label = "ring_progress"
     )
+    /** 实际绘制使用的环形进度。 */
     val ringProgress = if (shouldSkipRingAnimation) ringProgressTarget else animatedRingProgress
+    /** 计时聚焦时的圆盘缩放动画值。 */
     val timerCircleFocusScale by animateFloatAsState(
         targetValue = if (isTimerFocused) 1.12f else 1f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 180f),
         label = "timer_circle_focus_scale"
     )
+    /** 圆盘纵向偏移动画值。 */
     val timerCircleOffsetY by animateDpAsState(
         targetValue = stageLayout.circleOffsetYDp.dp,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 180f),
         label = "timer_circle_focus_offset"
     )
+    /** 当前项目在项目列表中的索引。 */
     val currentProjectIndex = remember(projectId, projects) {
         projects.indexOfFirst { it.id == projectId }
     }
+    /** 左侧相邻项目名称。 */
     val previousProjectName = remember(currentProjectIndex, projects) {
         if (currentProjectIndex > 0) projects[currentProjectIndex - 1].name else null
     }
+    /** 右侧相邻项目名称。 */
     val nextProjectName = remember(currentProjectIndex, projects) {
         if (currentProjectIndex in 0 until projects.lastIndex) projects[currentProjectIndex + 1].name else null
     }
 
+    /** 根据偏移量切换到相邻项目。 */
     fun navigateToAdjacentProject(offset: Int) {
         if (projects.size <= 1 || currentProjectIndex == -1) return
         val targetIndex = (currentProjectIndex + offset).coerceIn(0, projects.lastIndex)
@@ -293,6 +371,7 @@ fun TimerScreen(
         }
     }
 
+    /** 保存页面当前设置到项目默认配置。 */
     fun saveProjectSettings() {
         viewModel.updateProjectConfig(
             mode = selectedMode,
@@ -303,6 +382,7 @@ fun TimerScreen(
         )
     }
 
+    /** 处理计时圆盘点击，根据当前状态执行开始、暂停、继续或取消准备倒计时。 */
     fun onCircleClick() {
         when {
             isPreparing -> {
@@ -313,6 +393,7 @@ fun TimerScreen(
             isPaused -> viewModel.resumeTimer()
             else -> {
                 saveProjectSettings()
+                // 启动计时时把当前页面设置作为覆盖项传入，不必等待数据库回流。
                 viewModel.startTimer(
                     modeOverride = selectedMode,
                     durationOverride = if (selectedMode == TimerMode.COUNTDOWN) {
@@ -544,6 +625,7 @@ fun TimerScreen(
                                             projectSwipeAccumulator += dragAmount
                                         },
                                         onDragEnd = {
+                                            // 空闲态水平滑动用于在项目之间快速切换。
                                             when {
                                                 projectSwipeAccumulator <= -60f -> navigateToAdjacentProject(1)
                                                 projectSwipeAccumulator >= 60f -> navigateToAdjacentProject(-1)
@@ -675,6 +757,7 @@ fun TimerScreen(
                                             .matchParentSize()
                                             .pointerInput(showDrawer, bottomPanelState) {
                                                 detectTapGestures {
+                                                    // 点击圆盘外侧空白区域收起底部面板。
                                                     bottomPanelState = BottomPanelState.COLLAPSED
                                                 }
                                             }
@@ -820,6 +903,7 @@ fun TimerScreen(
     }
 }
 
+/** 计时圆盘组件，绘制进度环、时间文本和暂停态停止按钮。 */
 @Composable
 private fun TimerCircle(
     modifier: Modifier = Modifier,
@@ -834,13 +918,20 @@ private fun TimerCircle(
     onClick: () -> Unit,
     onStop: () -> Unit = {}
 ) {
+    /** 圆盘点击交互源。 */
     val interactionSource = remember { MutableInteractionSource() }
+
+    /** 圆盘是否处于按压状态。 */
     val isPressed by interactionSource.collectIsPressedAsState()
+
+    /** 按压缩放动画值。 */
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = tween(durationMillis = 120),
         label = "timer_circle_scale"
     )
+
+    /** 按压时外圈光晕透明度。 */
     val glowAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.28f else 0.12f,
         animationSpec = tween(durationMillis = 140),
@@ -863,6 +954,7 @@ private fun TimerCircle(
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            // 用 Canvas 手绘圆环，避免多个布局叠加导致进度和文本不对齐。
             val radius = size.minDimension / 2f - 10.dp.toPx()
             val stroke = 8.dp.toPx()
 
@@ -948,6 +1040,7 @@ private fun TimerCircle(
     }
 }
 
+/** 项目抽屉，用于在计时页内切换项目或创建新项目。 */
 @Composable
 private fun ProjectDrawer(
     visible: Boolean,
@@ -1001,6 +1094,7 @@ private fun ProjectDrawer(
                                 .fillMaxWidth()
                                 .clickable {
                                     onDismiss()
+                                    // 点击当前项目只关闭抽屉，点击其他项目才触发导航。
                                     if (project.id != projectId) {
                                         onNavigateToTimer(project.id)
                                     }
@@ -1040,6 +1134,7 @@ private fun ProjectDrawer(
     }
 }
 
+/** 计时页上方的小型数字设置输入框。 */
 @Composable
 private fun SmallSettingField(
     title: String,
@@ -1068,6 +1163,7 @@ private fun SmallSettingField(
     }
 }
 
+/** 相邻项目提示，用于提示左右滑动切换目标。 */
 @Composable
 private fun NeighborProjectHint(
     modifier: Modifier = Modifier,
@@ -1095,6 +1191,7 @@ private fun NeighborProjectHint(
     }
 }
 
+/** 底部历史/统计面板，支持拖拽折叠、半屏和展开。 */
 @Composable
 private fun BottomPanel(
     modifier: Modifier = Modifier,
@@ -1111,16 +1208,23 @@ private fun BottomPanel(
     onEditRecord: (TimingRecordEntity) -> Unit,
     onDeleteRecord: (TimingRecordEntity) -> Unit
 ) {
+    /** 当前面板状态对应的目标高度。 */
     val targetHeight = when (panelState) {
         BottomPanelState.COLLAPSED -> 56.dp
         BottomPanelState.HALF -> 360.dp
         BottomPanelState.EXPANDED -> 740.dp
     }
 
+    /** 屏幕密度，用于把拖拽像素转换为 dp。 */
     val density = LocalContext.current.resources.displayMetrics.density
+
+    /** 面板高度动画值。 */
     val animatedHeight = remember { Animatable(targetHeight.value) }
+
+    /** 拖拽过程中 snapTo/animateTo 使用的协程作用域。 */
     val scope = rememberCoroutineScope()
 
+    // 外部状态变化时，平滑动画到对应面板高度。
     LaunchedEffect(targetHeight) {
         animatedHeight.animateTo(
             targetValue = targetHeight.value,
@@ -1131,6 +1235,7 @@ private fun BottomPanel(
         )
     }
 
+    /** 约束后的当前面板高度。 */
     val currentHeight = animatedHeight.value.dp.coerceIn(56.dp, 760.dp)
 
     Card(
@@ -1144,10 +1249,12 @@ private fun BottomPanel(
                         onVerticalDrag = { _, dragAmount ->
                             dragAccumulator += dragAmount
                             scope.launch {
+                                // 手指向上拖时 dragAmount 为负，高度应增加。
                                 animatedHeight.snapTo((animatedHeight.value - dragAmount / density).coerceIn(56f, 760f))
                             }
                         },
                         onDragEnd = {
+                            // 超过阈值才切换状态，短拖拽回弹到原状态。
                             val threshold = 100f
                             val newState = when {
                                 dragAccumulator <= -threshold -> when (panelState) {
@@ -1184,10 +1291,12 @@ private fun BottomPanel(
                         onDrag = { _, dragAmount ->
                             dragAccumulator += dragAmount.y
                             scope.launch {
+                                // 长按后拖拽也使用同一套高度换算逻辑。
                                 animatedHeight.snapTo((animatedHeight.value - dragAmount.y / density).coerceIn(56f, 760f))
                             }
                         },
                         onDragEnd = {
+                            // 长按拖拽结束后根据累计位移切换面板状态。
                             val threshold = 100f
                             val newState = when {
                                 dragAccumulator <= -threshold -> when (panelState) {
@@ -1286,6 +1395,7 @@ private fun BottomPanel(
                     )
 
                     if (disabled) {
+                        // 准备倒计时时禁用历史面板交互，保留可见但不可操作的视觉反馈。
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
@@ -1298,6 +1408,7 @@ private fun BottomPanel(
     }
 }
 
+/** 底部面板内容，负责历史和统计两个标签页的横滑切换。 */
 @Composable
 private fun BottomTabContent(
     modifier: Modifier,
@@ -1314,6 +1425,7 @@ private fun BottomTabContent(
     onDeleteRecord: (TimingRecordEntity) -> Unit,
     isFullscreen: Boolean = false
 ) {
+    /** 横向拖拽累计值，用于判断标签页切换。 */
     var horizontalDragAccumulator by remember { mutableFloatStateOf(0f) }
 
     Box(
@@ -1324,6 +1436,7 @@ private fun BottomTabContent(
                         horizontalDragAccumulator += dragAmount
                     },
                     onDragEnd = {
+                        // 左滑进入统计，右滑回到历史。
                         if (horizontalDragAccumulator <= -40f && tab == BottomTab.HISTORY) {
                             onChangeTab(BottomTab.STATS)
                         } else if (horizontalDragAccumulator >= 40f && tab == BottomTab.STATS) {
@@ -1469,6 +1582,7 @@ private fun BottomTabContent(
     }
 }
 
+/** 统计项卡片。 */
 @Composable
 private fun StatItem(
     label: String,
@@ -1510,9 +1624,11 @@ private fun StatItem(
     }
 }
 
+/** 最近七天柱状图。 */
 @Composable
 private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize: Boolean = false) {
     if (weeklyStats.isEmpty()) return
+    /** 柱状图归一化使用的最大时长。 */
     val max = weeklyStats.maxOf { it.durationMs }.coerceAtLeast(1L)
 
     Card(
@@ -1546,6 +1662,7 @@ private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize:
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 weeklyStats.forEach { stat ->
+                    // 将每天时长映射为 0..1 的高度比例，并保留最小高度。
                     val h = (stat.durationMs.toFloat() / max.toFloat()).coerceIn(0f, 1f)
                     Column(
                         modifier = Modifier.weight(1f),
@@ -1576,8 +1693,10 @@ private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize:
     }
 }
 
+/** 过滤输入文本中的非数字字符。 */
 private fun digitsOnly(raw: String): String = raw.filter { it.isDigit() }
 
+/** 将秒数格式化为计时圆盘使用的 mm:ss 或 hh:mm:ss。 */
 private fun formatLarge(totalSecondsInput: Long): String {
     val totalSeconds = totalSecondsInput.coerceAtLeast(0L)
     val hours = totalSeconds / 3600
@@ -1590,6 +1709,7 @@ private fun formatLarge(totalSecondsInput: Long): String {
     }
 }
 
+/** 将毫秒时长格式化为固定 hh:mm:ss。 */
 private fun formatDurationHms(ms: Long): String {
     val totalSeconds = (ms / 1000L).coerceAtLeast(0L)
     val hours = totalSeconds / 3600
@@ -1598,10 +1718,12 @@ private fun formatDurationHms(ms: Long): String {
     return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
 }
 
+/** 将时间戳格式化为月/日和时分。 */
 private fun formatDate(epochMs: Long): String {
     return SimpleDateFormat("M/d HH:mm", Locale.getDefault()).format(Date(epochMs))
 }
 
+/** 将时间戳格式化为时分。 */
 private fun formatClock(epochMs: Long): String {
     return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMs))
 }

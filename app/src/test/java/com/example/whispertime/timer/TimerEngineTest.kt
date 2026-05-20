@@ -11,9 +11,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** 计时引擎单元测试，覆盖正计时、倒计时、暂停、停止、播报和恢复。 */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimerEngineTest {
 
+    /** 验证正计时启动后已计时时长会随单调时钟增长。 */
     @Test
     fun countUp_elapsedIncreases() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -38,6 +40,7 @@ class TimerEngineTest {
         engine.cancel()
     }
 
+    /** 验证倒计时启动后剩余时长会减少。 */
     @Test
     fun countdown_remainingDecreases() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -64,6 +67,7 @@ class TimerEngineTest {
         engine.cancel()
     }
 
+    /** 验证倒计时到零时会暂停并发送完成信号。 */
     @Test
     fun countdown_signalsCompletionAtZero() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -72,6 +76,7 @@ class TimerEngineTest {
             coroutineScope = this
         )
         val announcements = mutableListOf<Long>()
+        // 收集引擎播报信号，用于断言完成信号是否发出。
         val collectorJob = launch {
             engine.shouldAnnounce.collect { announcements.add(it) }
         }
@@ -93,6 +98,7 @@ class TimerEngineTest {
         collectorJob.cancel()
     }
 
+    /** 验证暂停后已计时时长保持冻结。 */
     @Test
     fun pause_freezesElapsed() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -122,6 +128,7 @@ class TimerEngineTest {
         engine.cancel()
     }
 
+    /** 验证停止计时会返回可保存的计时结果并重置状态。 */
     @Test
     fun stop_returnsCorrectResult() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -148,6 +155,7 @@ class TimerEngineTest {
         assertEquals(TimerState.IDLE, engine.state.value)
     }
 
+    /** 验证语音播报间隔会按配置周期触发。 */
     @Test
     fun voiceAnnouncement_triggersAtInterval() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 0L
@@ -156,6 +164,7 @@ class TimerEngineTest {
             coroutineScope = this
         )
         val announcements = mutableListOf<Long>()
+        // 收集周期播报信号，验证至少跨过两个间隔点。
         val collectorJob = launch {
             engine.shouldAnnounce.collect { announcements.add(it) }
         }
@@ -181,6 +190,7 @@ class TimerEngineTest {
         engine.cancel()
     }
 
+    /** 验证恢复运行中的倒计时会根据参考时钟重新计算剩余时间。 */
     @Test
     fun restore_runningCountdown_recomputesRemainingTime() = runTest(UnconfinedTestDispatcher()) {
         var fakeTime = 5_500L
@@ -188,6 +198,7 @@ class TimerEngineTest {
             timeSource = TimeSource { fakeTime },
             coroutineScope = this
         )
+        // 构造进程恢复后的解析结果，模拟后台已经流逝的时间。
         val resolved = ActiveTimerSessionResolver.resolve(
             session = ActiveTimerSession(
                 projectId = 1L,

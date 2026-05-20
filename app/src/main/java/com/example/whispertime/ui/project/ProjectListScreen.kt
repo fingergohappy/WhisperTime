@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whispertime.WhisperTimeApplication
 import com.example.whispertime.data.local.entity.ProjectEntity
 
+/** 项目列表页面，展示全部项目并提供进入计时、查看记录、编辑和删除入口。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectListScreen(
@@ -64,6 +65,7 @@ fun ProjectListScreen(
     val app = LocalContext.current.applicationContext as WhisperTimeApplication
     val voiceManager = app.container.voiceAnnouncementManager
 
+    // 列表页直接使用全局语音管理器提供手动测试入口。
     Scaffold(
         topBar = {
             TopAppBar(
@@ -160,6 +162,7 @@ fun ProjectListScreen(
     }
 }
 
+/** 单个项目卡片，展示项目名称、模式以及常用操作。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProjectCard(
@@ -192,7 +195,8 @@ fun ProjectCard(
                     ),
                     modifier = Modifier.weight(1f)
                 )
-                
+
+                // 项目模式存储为字符串，这里转换为面向用户的中文标签。
                 val modeLabel = if (project.timerMode == "COUNT_UP") "正计时" else "倒计时"
                 Text(
                     text = modeLabel,
@@ -205,6 +209,7 @@ fun ProjectCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             if (project.timerMode == "COUNTDOWN" && project.defaultDurationMs != null) {
+                // 只有倒计时项目才展示默认时长。
                 val minutes = project.defaultDurationMs / 60000
                 Text(
                     text = "默认时长: ${minutes}分钟",
