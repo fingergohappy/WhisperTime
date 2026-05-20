@@ -2,43 +2,28 @@ package com.example.whispertime.ui.timer
 
 import android.Manifest
 import android.app.Application
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,22 +35,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -74,13 +49,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -88,106 +59,37 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whispertime.data.local.entity.TimingRecordEntity
 import com.example.whispertime.timer.TimerMode
 import com.example.whispertime.timer.TimerState
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-/** 计时页主内容模式。 */
-private enum class TimerViewMode {
-    /** 计时主页面。 */
-    TIMER,
-
-    /** 项目设置页面。 */
-    SETTINGS
-}
-
-/** 底部面板标签页。 */
-private enum class BottomTab {
-    /** 历史记录标签页。 */
-    HISTORY,
-
-    /** 统计数据标签页。 */
-    STATS
-}
-
-/** 底部面板展开状态。 */
-private enum class BottomPanelState {
-    /** 仅显示拖拽把手。 */
-    COLLAPSED,
-
-    /** 半屏展示。 */
-    HALF,
-
-    /** 近似全屏展示。 */
-    EXPANDED
-}
-
-/** 底部面板统一圆角形状。 */
-private val PanelShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp)
-
-/** 电池优化提示偏好文件名。 */
-private const val BATTERY_EXEMPTION_PREFS = "battery_exemption_prompt"
-
-/** 是否已经请求过忽略电池优化的标记 key。 */
-private const val KEY_BATTERY_EXEMPTION_REQUESTED = "requested"
-
-/** 必要时请求用户将应用加入电池优化白名单，以提高长时间后台计时稳定性。 */
-private fun requestBatteryOptimizationExemptionIfNeeded(context: Context) {
-    val powerManager = context.getSystemService(PowerManager::class.java)
-    if (powerManager.isIgnoringBatteryOptimizations(context.packageName)) return
-
-    val preferences = context.getSharedPreferences(BATTERY_EXEMPTION_PREFS, Context.MODE_PRIVATE)
-    if (preferences.getBoolean(KEY_BATTERY_EXEMPTION_REQUESTED, false)) return
-
-    // 先记录已请求，避免用户拒绝后每次进入计时页都被打扰。
-    preferences.edit().putBoolean(KEY_BATTERY_EXEMPTION_REQUESTED, true).apply()
-
-    val packageUri = Uri.parse("package:${context.packageName}")
-    val requestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-        data = packageUri
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = packageUri
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-
-    val requestStarted = runCatching {
-        context.startActivity(requestIntent)
-    }.isSuccess
-    if (!requestStarted) {
-        // 部分 ROM 不支持白名单请求页时，退回到应用详情页让用户手动设置。
-        runCatching {
-            context.startActivity(fallbackIntent)
-        }
-    }
-}
+import com.example.whispertime.ui.timer.screen.BottomPanel
+import com.example.whispertime.ui.timer.screen.BottomPanelState
+import com.example.whispertime.ui.timer.screen.BottomTab
+import com.example.whispertime.ui.timer.screen.DeleteProjectDialog
+import com.example.whispertime.ui.timer.screen.EditRecordDurationDialog
+import com.example.whispertime.ui.timer.screen.NeighborProjectHint
+import com.example.whispertime.ui.timer.screen.ProjectDrawer
+import com.example.whispertime.ui.timer.screen.SmallSettingField
+import com.example.whispertime.ui.timer.screen.TimerCircle
+import com.example.whispertime.ui.timer.screen.TimerSettingsScreen
+import com.example.whispertime.ui.timer.screen.TimerViewMode
+import com.example.whispertime.ui.timer.screen.digitsOnly
+import com.example.whispertime.ui.timer.screen.formatLarge
+import com.example.whispertime.ui.timer.screen.requestBatteryOptimizationExemptionIfNeeded
 
 /** 计时主页面，承载计时圆盘、项目切换、设置、历史记录和统计面板。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -413,60 +315,22 @@ fun TimerScreen(
         }
     }
 
-    if (editingRecord != null) {
-        AlertDialog(
-            onDismissRequest = { editingRecord = null },
-            title = { Text("修改记录时长") },
-            text = {
-                OutlinedTextField(
-                    value = editDurationSeconds,
-                    onValueChange = { editDurationSeconds = digitsOnly(it) },
-                    label = { Text("总秒数") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val record = editingRecord
-                        val seconds = editDurationSeconds.toLongOrNull()
-                        if (record != null && seconds != null && seconds > 0) {
-                            viewModel.updateRecordDurationSeconds(record, seconds)
-                        }
-                        editingRecord = null
-                    }
-                ) {
-                    Text("保存")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingRecord = null }) {
-                    Text("取消")
-                }
+    editingRecord?.let { record ->
+        EditRecordDurationDialog(
+            record = record,
+            editDurationSeconds = editDurationSeconds,
+            onEditDurationSecondsChange = { editDurationSeconds = it },
+            onDismiss = { editingRecord = null },
+            onConfirm = { targetRecord, seconds ->
+                viewModel.updateRecordDurationSeconds(targetRecord, seconds)
             }
         )
     }
 
     if (showDeleteProjectDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteProjectDialog = false },
-            title = { Text("删除项目") },
-            text = { Text("确定要删除当前项目吗？项目下的记录也会一并删除，此操作不可撤销。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteProjectDialog = false
-                        viewModel.deleteCurrentProject()
-                    }
-                ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteProjectDialog = false }) {
-                    Text("取消")
-                }
-            }
+        DeleteProjectDialog(
+            onDismiss = { showDeleteProjectDialog = false },
+            onConfirm = { viewModel.deleteCurrentProject() }
         )
     }
 
@@ -486,120 +350,24 @@ fun TimerScreen(
                 label = "timer_view_mode"
             ) { currentViewMode ->
                 if (currentViewMode == TimerViewMode.SETTINGS) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { viewMode = TimerViewMode.TIMER }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                            }
-                            Text("项目设置", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
-                        }
-                        
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("准备倒计时（秒）", style = MaterialTheme.typography.labelLarge)
-                                OutlinedTextField(
-                                    value = prepareSecondsText,
-                                    onValueChange = { prepareSecondsText = digitsOnly(it) },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("语音播报", style = MaterialTheme.typography.labelLarge)
-                                    Switch(checked = voiceEnabled, onCheckedChange = { voiceEnabled = it })
-                                }
-                                OutlinedTextField(
-                                    value = voiceIntervalSecondsText,
-                                    onValueChange = { voiceIntervalSecondsText = digitsOnly(it) },
-                                    singleLine = true,
-                                    enabled = voiceEnabled,
-                                    label = { Text("间隔（秒）") },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("震动提醒", style = MaterialTheme.typography.labelLarge)
-                                    Switch(
-                                        checked = vibrationReminderEnabled,
-                                        onCheckedChange = { vibrationReminderEnabled = it }
-                                    )
-                                }
-                                Text(
-                                    text = "周期震动复用语音播报间隔；准备倒计时、开始和结束也会震动",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("计时模式", style = MaterialTheme.typography.labelLarge)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(
-                                        selected = selectedMode == TimerMode.COUNT_UP,
-                                        onClick = { selectedMode = TimerMode.COUNT_UP },
-                                        label = { Text("正计时") }
-                                    )
-                                    FilterChip(
-                                        selected = selectedMode == TimerMode.COUNTDOWN,
-                                        onClick = { selectedMode = TimerMode.COUNTDOWN },
-                                        label = { Text("倒计时") }
-                                    )
-                                }
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                saveProjectSettings()
-                                viewMode = TimerViewMode.TIMER
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("保存设置")
-                        }
-
-                        TextButton(
-                            onClick = { showDeleteProjectDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 6.dp)
-                            )
-                            Text("删除项目")
-                        }
-                    }
+                    TimerSettingsScreen(
+                        selectedMode = selectedMode,
+                        prepareSecondsText = prepareSecondsText,
+                        voiceIntervalSecondsText = voiceIntervalSecondsText,
+                        voiceEnabled = voiceEnabled,
+                        vibrationReminderEnabled = vibrationReminderEnabled,
+                        onSelectedModeChange = { selectedMode = it },
+                        onPrepareSecondsTextChange = { prepareSecondsText = it },
+                        onVoiceIntervalSecondsTextChange = { voiceIntervalSecondsText = it },
+                        onVoiceEnabledChange = { voiceEnabled = it },
+                        onVibrationReminderEnabledChange = { vibrationReminderEnabled = it },
+                        onBack = { viewMode = TimerViewMode.TIMER },
+                        onSave = {
+                            saveProjectSettings()
+                            viewMode = TimerViewMode.TIMER
+                        },
+                        onDeleteProject = { showDeleteProjectDialog = true }
+                    )
                 } else {
                     Box(
                         modifier = Modifier
@@ -901,829 +669,4 @@ fun TimerScreen(
         )
 
     }
-}
-
-/** 计时圆盘组件，绘制进度环、时间文本和暂停态停止按钮。 */
-@Composable
-private fun TimerCircle(
-    modifier: Modifier = Modifier,
-    primaryColor: Color,
-    progress: Float,
-    isPreparing: Boolean,
-    preparingText: String,
-    timeText: String,
-    showStopButton: Boolean,
-    primaryHintText: String,
-    secondaryHintText: String?,
-    onClick: () -> Unit,
-    onStop: () -> Unit = {}
-) {
-    /** 圆盘点击交互源。 */
-    val interactionSource = remember { MutableInteractionSource() }
-
-    /** 圆盘是否处于按压状态。 */
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    /** 按压缩放动画值。 */
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "timer_circle_scale"
-    )
-
-    /** 按压时外圈光晕透明度。 */
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.28f else 0.12f,
-        animationSpec = tween(durationMillis = 140),
-        label = "timer_circle_glow"
-    )
-
-    Box(
-        modifier = modifier
-            .size(292.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                enabled = true,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // 用 Canvas 手绘圆环，避免多个布局叠加导致进度和文本不对齐。
-            val radius = size.minDimension / 2f - 10.dp.toPx()
-            val stroke = 8.dp.toPx()
-
-            drawCircle(
-                color = primaryColor.copy(alpha = glowAlpha),
-                radius = radius + 10.dp.toPx(),
-                style = Stroke(width = 12.dp.toPx())
-            )
-
-            drawCircle(
-                color = Color.White.copy(alpha = 0.05f),
-                radius = radius,
-                style = Stroke(width = 4.dp.toPx())
-            )
-
-            drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(primaryColor, primaryColor.copy(alpha = 0.4f), primaryColor)
-                ),
-                startAngle = -90f,
-                sweepAngle = progress.coerceIn(0f, 1f) * 360f,
-                useCenter = false,
-                topLeft = Offset(size.width / 2f - radius, size.height / 2f - radius),
-                size = Size(radius * 2f, radius * 2f),
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
-            )
-
-            drawCircle(
-                color = Color.White.copy(alpha = 0.03f),
-                radius = radius - 20.dp.toPx(),
-                blendMode = BlendMode.SrcOver
-            )
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (isPreparing) {
-                Text(
-                    text = preparingText,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 100.sp),
-                    color = primaryColor,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-2).sp
-                )
-            } else {
-                Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 78.sp),
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-2).sp,
-                    textAlign = TextAlign.Center
-                )
-
-                if (showStopButton) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onStop,
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f))
-                    ) {
-                        Text(primaryHintText, fontWeight = FontWeight.Bold)
-                    }
-                    secondaryHintText?.let {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                } else {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = primaryHintText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** 项目抽屉，用于在计时页内切换项目或创建新项目。 */
-@Composable
-private fun ProjectDrawer(
-    visible: Boolean,
-    projects: List<com.example.whispertime.data.local.entity.ProjectEntity>,
-    projectId: Long,
-    onDismiss: () -> Unit,
-    onNavigateToTimer: (Long) -> Unit,
-    onNavigateToCreateProject: () -> Unit
-) {
-    androidx.compose.animation.AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(220)),
-        exit = fadeOut(tween(180))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.58f))
-                .clickable(onClick = onDismiss)
-        )
-    }
-
-    androidx.compose.animation.AnimatedVisibility(
-        visible = visible,
-        enter = slideInHorizontally(animationSpec = tween(260)) { -it } + fadeIn(tween(220)),
-        exit = slideOutHorizontally(animationSpec = tween(220)) { -it } + fadeOut(tween(160))
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.82f)
-                .fillMaxSize(),
-            shape = RoundedCornerShape(topEnd = 30.dp, bottomEnd = 30.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("切换项目", style = MaterialTheme.typography.titleLarge)
-                    TextButton(onClick = onDismiss) { Text("关闭") }
-                }
-                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(projects, key = { it.id }) { project ->
-                        Card(
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp)
-                                .fillMaxWidth()
-                                .clickable {
-                                    onDismiss()
-                                    // 点击当前项目只关闭抽屉，点击其他项目才触发导航。
-                                    if (project.id != projectId) {
-                                        onNavigateToTimer(project.id)
-                                    }
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (project.id == projectId) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-                                }
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(project.name, fontWeight = FontWeight.Bold)
-                                Text(
-                                    "${if (project.id == projectId) "当前项目" else "点击切换"} · ${project.name}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-                TextButton(
-                    onClick = {
-                        onDismiss()
-                        onNavigateToCreateProject()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text("新建项目")
-                }
-            }
-        }
-    }
-}
-
-/** 计时页上方的小型数字设置输入框。 */
-@Composable
-private fun SmallSettingField(
-    title: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-    ) {
-        Column(
-            modifier = Modifier
-                .width(90.dp)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-/** 相邻项目提示，用于提示左右滑动切换目标。 */
-@Composable
-private fun NeighborProjectHint(
-    modifier: Modifier = Modifier,
-    title: String,
-    projectName: String?,
-    alignEnd: Boolean
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
-        Text(
-            text = projectName ?: "无",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = if (alignEnd) TextAlign.End else TextAlign.Start
-        )
-    }
-}
-
-/** 底部历史/统计面板，支持拖拽折叠、半屏和展开。 */
-@Composable
-private fun BottomPanel(
-    modifier: Modifier = Modifier,
-    panelState: BottomPanelState,
-    disabled: Boolean,
-    tab: BottomTab,
-    records: List<TimingRecordEntity>,
-    totalDurationMs: Long,
-    recordCount: Int,
-    averageDurationMs: Long,
-    weeklyStats: List<TimerViewModel.WeeklyStat>,
-    onSetPanelState: (BottomPanelState) -> Unit,
-    onChangeTab: (BottomTab) -> Unit,
-    onEditRecord: (TimingRecordEntity) -> Unit,
-    onDeleteRecord: (TimingRecordEntity) -> Unit
-) {
-    /** 当前面板状态对应的目标高度。 */
-    val targetHeight = when (panelState) {
-        BottomPanelState.COLLAPSED -> 56.dp
-        BottomPanelState.HALF -> 360.dp
-        BottomPanelState.EXPANDED -> 740.dp
-    }
-
-    /** 屏幕密度，用于把拖拽像素转换为 dp。 */
-    val density = LocalContext.current.resources.displayMetrics.density
-
-    /** 面板高度动画值。 */
-    val animatedHeight = remember { Animatable(targetHeight.value) }
-
-    /** 拖拽过程中 snapTo/animateTo 使用的协程作用域。 */
-    val scope = rememberCoroutineScope()
-
-    // 外部状态变化时，平滑动画到对应面板高度。
-    LaunchedEffect(targetHeight) {
-        animatedHeight.animateTo(
-            targetValue = targetHeight.value,
-            animationSpec = spring(
-                dampingRatio = 0.72f,
-                stiffness = 320f
-            )
-        )
-    }
-
-    /** 约束后的当前面板高度。 */
-    val currentHeight = animatedHeight.value.dp.coerceIn(56.dp, 760.dp)
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(currentHeight)
-            .pointerInput(disabled, panelState) {
-                if (!disabled) {
-                    var dragAccumulator = 0f
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, dragAmount ->
-                            dragAccumulator += dragAmount
-                            scope.launch {
-                                // 手指向上拖时 dragAmount 为负，高度应增加。
-                                animatedHeight.snapTo((animatedHeight.value - dragAmount / density).coerceIn(56f, 760f))
-                            }
-                        },
-                        onDragEnd = {
-                            // 超过阈值才切换状态，短拖拽回弹到原状态。
-                            val threshold = 100f
-                            val newState = when {
-                                dragAccumulator <= -threshold -> when (panelState) {
-                                    BottomPanelState.COLLAPSED -> BottomPanelState.HALF
-                                    BottomPanelState.HALF -> BottomPanelState.EXPANDED
-                                    BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
-                                }
-                                dragAccumulator >= threshold -> when (panelState) {
-                                    BottomPanelState.EXPANDED -> BottomPanelState.HALF
-                                    BottomPanelState.HALF -> BottomPanelState.COLLAPSED
-                                    BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
-                                }
-                                else -> panelState
-                            }
-                            if (newState != panelState) {
-                                onSetPanelState(newState)
-                            } else {
-                                scope.launch {
-                                    animatedHeight.animateTo(
-                                        targetValue = targetHeight.value,
-                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                    )
-                                }
-                            }
-                            dragAccumulator = 0f
-                        }
-                    )
-                }
-            }
-            .pointerInput(disabled, panelState) {
-                if (!disabled) {
-                    var dragAccumulator = 0f
-                    detectDragGesturesAfterLongPress(
-                        onDrag = { _, dragAmount ->
-                            dragAccumulator += dragAmount.y
-                            scope.launch {
-                                // 长按后拖拽也使用同一套高度换算逻辑。
-                                animatedHeight.snapTo((animatedHeight.value - dragAmount.y / density).coerceIn(56f, 760f))
-                            }
-                        },
-                        onDragEnd = {
-                            // 长按拖拽结束后根据累计位移切换面板状态。
-                            val threshold = 100f
-                            val newState = when {
-                                dragAccumulator <= -threshold -> when (panelState) {
-                                    BottomPanelState.COLLAPSED -> BottomPanelState.HALF
-                                    BottomPanelState.HALF -> BottomPanelState.EXPANDED
-                                    BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
-                                }
-                                dragAccumulator >= threshold -> when (panelState) {
-                                    BottomPanelState.EXPANDED -> BottomPanelState.HALF
-                                    BottomPanelState.HALF -> BottomPanelState.COLLAPSED
-                                    BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
-                                }
-                                else -> panelState
-                            }
-                            if (newState != panelState) {
-                                onSetPanelState(newState)
-                            } else {
-                                scope.launch {
-                                    animatedHeight.animateTo(
-                                        targetValue = targetHeight.value,
-                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                    )
-                                }
-                            }
-                            dragAccumulator = 0f
-                        },
-                        onDragCancel = {
-                            scope.launch {
-                                animatedHeight.animateTo(
-                                    targetValue = targetHeight.value,
-                                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                )
-                            }
-                        }
-                    )
-                }
-            },
-        shape = PanelShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .background(Color.Transparent)
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .width(46.dp)
-                    .height(4.dp)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), CircleShape)
-                    .clickable(enabled = !disabled) {
-                        if (panelState == BottomPanelState.COLLAPSED) {
-                            onSetPanelState(BottomPanelState.HALF)
-                        } else {
-                            onSetPanelState(BottomPanelState.COLLAPSED)
-                        }
-                    }
-            )
-
-            if (panelState != BottomPanelState.COLLAPSED) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { onChangeTab(BottomTab.HISTORY) }, enabled = !disabled) {
-                        Text(
-                            "HISTORY",
-                            color = if (tab == BottomTab.HISTORY) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    TextButton(onClick = { onChangeTab(BottomTab.STATS) }, enabled = !disabled) {
-                        Text(
-                            "STATS",
-                            color = if (tab == BottomTab.STATS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    BottomTabContent(
-                        modifier = Modifier.fillMaxSize(),
-                        tab = tab,
-                        records = records,
-                        totalDurationMs = totalDurationMs,
-                        recordCount = recordCount,
-                        averageDurationMs = averageDurationMs,
-                        weeklyStats = weeklyStats,
-                        disabled = disabled,
-                        enableHorizontalSwipe = !disabled,
-                        onChangeTab = onChangeTab,
-                        onEditRecord = onEditRecord,
-                        onDeleteRecord = onDeleteRecord,
-                        isFullscreen = panelState == BottomPanelState.EXPANDED
-                    )
-
-                    if (disabled) {
-                        // 准备倒计时时禁用历史面板交互，保留可见但不可操作的视觉反馈。
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Black.copy(alpha = 0.35f))
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 底部面板内容，负责历史和统计两个标签页的横滑切换。 */
-@Composable
-private fun BottomTabContent(
-    modifier: Modifier,
-    tab: BottomTab,
-    records: List<TimingRecordEntity>,
-    totalDurationMs: Long,
-    recordCount: Int,
-    averageDurationMs: Long,
-    weeklyStats: List<TimerViewModel.WeeklyStat>,
-    disabled: Boolean,
-    enableHorizontalSwipe: Boolean,
-    onChangeTab: (BottomTab) -> Unit,
-    onEditRecord: (TimingRecordEntity) -> Unit,
-    onDeleteRecord: (TimingRecordEntity) -> Unit,
-    isFullscreen: Boolean = false
-) {
-    /** 横向拖拽累计值，用于判断标签页切换。 */
-    var horizontalDragAccumulator by remember { mutableFloatStateOf(0f) }
-
-    Box(
-        modifier = modifier.pointerInput(tab, enableHorizontalSwipe) {
-            if (enableHorizontalSwipe) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, dragAmount ->
-                        horizontalDragAccumulator += dragAmount
-                    },
-                    onDragEnd = {
-                        // 左滑进入统计，右滑回到历史。
-                        if (horizontalDragAccumulator <= -40f && tab == BottomTab.HISTORY) {
-                            onChangeTab(BottomTab.STATS)
-                        } else if (horizontalDragAccumulator >= 40f && tab == BottomTab.STATS) {
-                            onChangeTab(BottomTab.HISTORY)
-                        }
-                        horizontalDragAccumulator = 0f
-                    }
-                )
-            }
-        }
-    ) {
-        AnimatedContent(
-            targetState = tab,
-            transitionSpec = {
-                if (targetState.ordinal > initialState.ordinal) {
-                    (slideInHorizontally { it / 3 } + fadeIn()).togetherWith(
-                        slideOutHorizontally { -it / 3 } + fadeOut()
-                    )
-                } else {
-                    (slideInHorizontally { -it / 3 } + fadeIn()).togetherWith(
-                        slideOutHorizontally { it / 3 } + fadeOut()
-                    )
-                }
-            },
-            label = "bottom_tab_switch"
-        ) { currentTab ->
-            if (currentTab == BottomTab.HISTORY) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (records.isEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = if (isFullscreen) 48.dp else 28.dp),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 28.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("暂无记录", color = MaterialTheme.colorScheme.onSurface)
-                                }
-                            }
-                        }
-                    } else {
-                        items(records.take(20), key = { it.id }) { record ->
-                            val interactionSource = remember { MutableInteractionSource() }
-                            val isPressed by interactionSource.collectIsPressedAsState()
-                            Card(
-                                shape = RoundedCornerShape(if (isFullscreen) 22.dp else 16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isFullscreen) {
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    } else {
-                                        MaterialTheme.colorScheme.surface
-                                    }
-                                ),
-                                border = if (isFullscreen) {
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-                                } else null
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer {
-                                            val scale = if (isPressed) 0.985f else 1f
-                                            scaleX = scale
-                                            scaleY = scale
-                                        }
-                                        .clickable(
-                                            interactionSource = interactionSource,
-                                            indication = null,
-                                            enabled = !disabled,
-                                            onClick = { onEditRecord(record) }
-                                        )
-                                        .padding(
-                                            horizontal = if (isFullscreen) 16.dp else 12.dp,
-                                            vertical = if (isFullscreen) 14.dp else 10.dp
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            formatDurationHms(record.durationMs),
-                                            fontFamily = FontFamily.Monospace,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            "${formatDate(record.startTime)} - ${formatClock(record.endTime)}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    TextButton(onClick = { onEditRecord(record) }, enabled = !disabled) { Text("编辑") }
-                                    IconButton(onClick = { onDeleteRecord(record) }, enabled = !disabled) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (isFullscreen) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            StatItem("Total", formatLarge(totalDurationMs / 1000L), Modifier.weight(1f), true)
-                            StatItem("Sessions", recordCount.toString(), Modifier.weight(1f), true)
-                        }
-                        StatItem("Average Duration", formatLarge(averageDurationMs / 1000L), Modifier.fillMaxWidth(), true)
-                    } else {
-                        StatItem("Total Time", formatLarge(totalDurationMs / 1000L))
-                        StatItem("Sessions", recordCount.toString())
-                        StatItem("Average", formatLarge(averageDurationMs / 1000L))
-                    }
-                    WeeklyChart(weeklyStats, isFullscreen)
-                }
-            }
-        }
-    }
-}
-
-/** 统计项卡片。 */
-@Composable
-private fun StatItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    emphasize: Boolean = false
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(if (emphasize) 22.dp else 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (emphasize) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = if (emphasize) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        } else null
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = if (emphasize) 16.dp else 12.dp,
-                    vertical = if (emphasize) 14.dp else 10.dp
-                ),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                value,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-/** 最近七天柱状图。 */
-@Composable
-private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize: Boolean = false) {
-    if (weeklyStats.isEmpty()) return
-    /** 柱状图归一化使用的最大时长。 */
-    val max = weeklyStats.maxOf { it.durationMs }.coerceAtLeast(1L)
-
-    Card(
-        shape = RoundedCornerShape(if (emphasize) 24.dp else 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (emphasize) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = if (emphasize) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        } else null
-    ) {
-        Column(modifier = Modifier.padding(if (emphasize) 14.dp else 10.dp)) {
-            if (emphasize) {
-                Text(
-                    "Weekly Trend",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (emphasize) 120.dp else 90.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                weeklyStats.forEach { stat ->
-                    // 将每天时长映射为 0..1 的高度比例，并保留最小高度。
-                    val h = (stat.durationMs.toFloat() / max.toFloat()).coerceIn(0f, 1f)
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height((h * if (emphasize) 92f else 70f).dp.coerceAtLeast(4.dp))
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
-                                    ),
-                                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
-                                )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stat.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 过滤输入文本中的非数字字符。 */
-private fun digitsOnly(raw: String): String = raw.filter { it.isDigit() }
-
-/** 将秒数格式化为计时圆盘使用的 mm:ss 或 hh:mm:ss。 */
-private fun formatLarge(totalSecondsInput: Long): String {
-    val totalSeconds = totalSecondsInput.coerceAtLeast(0L)
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
-    }
-}
-
-/** 将毫秒时长格式化为固定 hh:mm:ss。 */
-private fun formatDurationHms(ms: Long): String {
-    val totalSeconds = (ms / 1000L).coerceAtLeast(0L)
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
-}
-
-/** 将时间戳格式化为月/日和时分。 */
-private fun formatDate(epochMs: Long): String {
-    return SimpleDateFormat("M/d HH:mm", Locale.getDefault()).format(Date(epochMs))
-}
-
-/** 将时间戳格式化为时分。 */
-private fun formatClock(epochMs: Long): String {
-    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMs))
 }

@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 将 Compose 界面内容挂载到当前 Activity，后续的主题、Surface 和导航都从这里开始渲染。
         setContent {
             WhisperTimeTheme {
                 Surface(

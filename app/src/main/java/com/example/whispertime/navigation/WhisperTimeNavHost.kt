@@ -37,14 +37,21 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
         navController = navController,
         startDestination = Screen.TimerHome.route
     ) {
+        // 计时首页路由，作为应用启动后的默认入口。
         composable(Screen.TimerHome.route) {
+            // 计时首页界面，负责分发进入计时页和新建项目的导航事件。
             TimerHomeScreen(
+                // 进入指定项目的计时页。
                 onNavigateToTimer = { projectId ->
+                    // 跳转到项目计时页。
                     navController.navigate(Screen.Timer(projectId).route) {
+                        // 进入计时页后移除首页，避免返回时再次看到入口页。
                         popUpTo(Screen.TimerHome.route) { inclusive = true }
                     }
                 },
+                // 进入新建项目页面。
                 onNavigateToCreateProject = {
+                    // projectId 为空表示创建新项目。
                     navController.navigate(Screen.ProjectEdit(null).route)
                 }
             )

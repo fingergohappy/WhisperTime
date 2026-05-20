@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Android 12 及以上的自动备份和设备迁移规则。
+   历史项目和计时记录保存在 Room 数据库目录，卸载重装后由系统备份恢复。
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- 云端备份只包含数据库目录，避免恢复过期的运行中计时会话偏好。 -->
+        <include domain="database" path="." />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- 换机迁移同样只传输数据库目录，保证历史数据随设备迁移。 -->
+        <include domain="database" path="." />
     </device-transfer>
-    -->
 </data-extraction-rules>
