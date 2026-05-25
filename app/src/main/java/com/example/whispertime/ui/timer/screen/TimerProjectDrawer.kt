@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.whispertime.BuildConfig
 import com.example.whispertime.data.local.entity.ProjectEntity
 
 /** 项目抽屉，用于在计时页内切换项目或创建新项目。 */
@@ -86,20 +87,36 @@ internal fun ProjectDrawer(
                         )
                     }
                 }
-                TextButton(
-                    onClick = {
-                        onDismiss()
-                        onNavigateToCreateProject()
-                    },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("新建项目")
+                    TextButton(
+                        onClick = {
+                            onDismiss()
+                            onNavigateToCreateProject()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("新建项目")
+                    }
+                    VersionFooter(versionName = BuildConfig.VERSION_NAME)
                 }
             }
         }
     }
+}
+
+/** 抽屉底部版本信息栏，展示当前安装包的可见版本号。 */
+@Composable
+private fun VersionFooter(versionName: String) {
+    Text(
+        text = "版本 $versionName",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+    )
 }
 
 /** 抽屉外层遮罩，点击后关闭项目抽屉。 */
