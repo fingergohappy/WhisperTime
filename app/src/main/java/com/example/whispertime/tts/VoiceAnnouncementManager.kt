@@ -4,7 +4,11 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
@@ -12,15 +16,30 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import java.util.Locale
 
-/** 语音播报管理器，封装 TTS 初始化、队列、音频焦点和播报格式化。 */
+/** 语音播报管理器，封装 TTS 文件合成、应用内播放、队列、音频焦点和播报格式化。 */
 class VoiceAnnouncementManager(private val context: Context) {
+
+    /** 单条播报请求，记录 TTS 合成文件、队列世代和重试次数。 */
+    private data class SpeechRequest(
+        /** TTS 合成请求 ID，用于匹配异步回调。 */
+        val id: String,
+        /** 待播报文本。 */
+        val text: String,
+        /** TTS 合成输出文件。 */
+        val file: File,
+        /** 队列世代，用于忽略 flush 或 stop 之后到达的旧回调。 */
+        val generation: Long,
+        /** 合成失败后的重试次数。 */
+        val retryCount: Int = 0
+    )
 
     /** 日志标签。 */
     private val tag = "VoiceAnnouncement"
 
-    /** Android TTS 实例，初始化失败或关闭后为空。 */
+    /** Android TTS 实例，只负责把文本合成为缓存音频文件。 */
     private var tts: TextToSpeech? = null
 
     /** 内部 TTS 就绪状态。 */
@@ -29,14 +48,34 @@ class VoiceAnnouncementManager(private val context: Context) {
     /** 对外暴露的 TTS 就绪状态。 */
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
-    /** 保护待播队列和播报 ID 集合的同步锁。 */
+    /** 保护待播队列、当前请求和播放器状态的同步锁。 */
     private val lock = Any()
 
-    /** TTS 未就绪时暂存的播报文本队列。 */
-    private val pendingQueue = ArrayDeque<String>()
+    /** TTS 未就绪或正在播放时暂存的播报请求队列。 */
+    private val pendingQueue = ArrayDeque<SpeechRequest>()
 
-    /** 已提交给 TTS 但尚未结束回调的 utteranceId 集合。 */
-    private val pendingUtteranceIds = mutableSetOf<String>()
+    /** 当前正在合成或正在播放的播报请求。 */
+    private var currentRequest: SpeechRequest? = null
+
+    /** 当前请求是否正在等待 TTS 文件合成完成。 */
+    private var isSynthesizing = false
+
+    /** 当前由本应用持有的短语音播放器。 */
+    private var mediaPlayer: MediaPlayer? = null
+
+    /** 主线程 Handler，用于串行创建和启动 MediaPlayer。 */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 队列世代号，flush、stop、shutdown 时递增以废弃旧回调。 */
+    private var playbackGeneration = 0L
+
+    /** 递增请求序号，用于生成稳定且唯一的 utteranceId。 */
+    private var requestCounter = 0L
+
+    /** TTS 合成缓存目录，位于应用私有缓存中。 */
+    private val synthesisDir: File by lazy {
+        File(context.cacheDir, "voice_announcements")
+    }
 
     /** 当前是否正在初始化 TTS。 */
     private var isInitializing = false
@@ -62,6 +101,7 @@ class VoiceAnnouncementManager(private val context: Context) {
             AudioManager.AUDIOFOCUS_GAIN, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT -> {
                 hasAudioFocus = true
             }
+
             AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 hasAudioFocus = false
@@ -69,8 +109,9 @@ class VoiceAnnouncementManager(private val context: Context) {
         }
     }
 
-    /** 初始化 TTS，并清空旧的待播队列。 */
+    /** 初始化 TTS，并清空旧的待播队列和遗留合成文件。 */
     fun init() {
+        cleanSynthesisCache()
         restartTts(clearPendingQueue = true)
     }
 
@@ -84,10 +125,16 @@ class VoiceAnnouncementManager(private val context: Context) {
             }
             isInitializing = true
             lastInitAttemptElapsedMs = now
-            pendingUtteranceIds.clear()
             if (clearPendingQueue) {
-                pendingQueue.clear()
+                playbackGeneration += 1L
+                clearQueuedFilesLocked()
+                currentRequest?.file?.delete()
+                currentRequest = null
+                isSynthesizing = false
             }
+        }
+        if (clearPendingQueue) {
+            stopAndReleasePlayer()
         }
         Log.d(tag, "restartTts(): begin; clearPendingQueue=$clearPendingQueue wasReady=${_isReady.value}")
         tts?.shutdown()
@@ -118,51 +165,61 @@ class VoiceAnnouncementManager(private val context: Context) {
 
                 tts?.setOnUtteranceProgressListener(
                     object : UtteranceProgressListener() {
-                        /** 单条播报开始回调。 */
+                        /** 单条语音文件合成开始回调。 */
                         override fun onStart(utteranceId: String) {
-                            Log.d(tag, "utterance onStart id=$utteranceId")
+                            Log.d(tag, "synthesis onStart id=$utteranceId")
                         }
 
-                        /** 单条播报完成回调，尝试释放音频焦点。 */
+                        /** 单条语音文件合成完成回调，随后交给本应用播放器发声。 */
                         override fun onDone(utteranceId: String) {
-                            Log.d(tag, "utterance onDone id=$utteranceId")
-                            markUtteranceFinished(utteranceId)
+                            Log.d(tag, "synthesis onDone id=$utteranceId")
+                            handleSynthesisDone(utteranceId)
                         }
 
                         /** 旧版错误回调，兼容低版本 TTS。 */
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String) {
-                            Log.e(tag, "utterance onError id=$utteranceId")
-                            markUtteranceFinished(utteranceId)
+                            Log.e(tag, "synthesis onError id=$utteranceId")
+                            handleSynthesisFailure(
+                                utteranceId = utteranceId,
+                                restartEngine = true,
+                                keepText = true
+                            )
                         }
 
-                        /** 新版错误回调，失败后保留队列并重启 TTS。 */
+                        /** 新版错误回调，失败后保留一次重试机会并重启 TTS。 */
                         override fun onError(utteranceId: String, errorCode: Int) {
-                            Log.e(tag, "utterance onError id=$utteranceId errorCode=$errorCode")
-                            markUtteranceFinished(utteranceId)
-                            restartTts(clearPendingQueue = false)
+                            Log.e(tag, "synthesis onError id=$utteranceId errorCode=$errorCode")
+                            handleSynthesisFailure(
+                                utteranceId = utteranceId,
+                                restartEngine = true,
+                                keepText = true
+                            )
                         }
 
-                        /** 播报被停止时清理对应 utterance 状态。 */
+                        /** 合成被停止时清理对应请求，不再补播旧内容。 */
                         override fun onStop(utteranceId: String, interrupted: Boolean) {
-                            Log.d(tag, "utterance onStop id=$utteranceId interrupted=$interrupted")
-                            markUtteranceFinished(utteranceId)
+                            Log.d(tag, "synthesis onStop id=$utteranceId interrupted=$interrupted")
+                            handleSynthesisFailure(
+                                utteranceId = utteranceId,
+                                restartEngine = false,
+                                keepText = false
+                            )
                         }
                     }
                 )
 
-                // 导航引导语音类型更适合短播报，并可和耳机/蓝牙路由协作。
+                // TTS 只合成文件；真实播放由本应用 MediaPlayer 完成，避免系统 TTS 后台播放被静音。
                 val audioAttributes = AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
                 tts?.setAudioAttributes(audioAttributes)
-                Log.d(tag, "onInit(): AudioAttributes set to USAGE_ASSISTANCE_NAVIGATION_GUIDANCE")
+                Log.d(tag, "onInit(): AudioAttributes set for synthesis")
 
                 _isReady.value = ready
                 if (ready) {
-                    // TTS 就绪后按原顺序补播初始化期间积压的文本。
-                    drainPendingQueue()
+                    processNextSpeech()
                 } else {
                     Log.w(tag, "onInit(): ready=false; announcements will be queued only")
                 }
@@ -172,97 +229,294 @@ class VoiceAnnouncementManager(private val context: Context) {
         }
     }
 
-    /** 立即播报文本，并清空 TTS 内部未播完内容。 */
+    /** 立即播报文本，并清空 TTS 和本应用播放器里的旧内容。 */
     fun announce(text: String) {
-        Log.d(tag, "announce(): ready=${_isReady.value} queueSize=${pendingQueue.size} text=$text")
-        if (!_isReady.value) {
-            enqueuePending(text)
-            return
-        }
-        speakNow(text, TextToSpeech.QUEUE_FLUSH)
+        val queueSize = synchronized(lock) { pendingQueue.size }
+        Log.d(tag, "announce(): ready=${_isReady.value} queueSize=$queueSize text=$text")
+        enqueueAnnouncement(text = text, flushExisting = true)
     }
 
-    /** 追加播报文本，不打断已经排队的语音。 */
+    /** 追加播报文本，不打断已经排队或正在播放的语音。 */
     fun announceQueued(text: String) {
-        Log.d(tag, "announceQueued(): ready=${_isReady.value} queueSize=${pendingQueue.size} text=$text")
-        if (!_isReady.value) {
-            enqueuePending(text)
-            return
-        }
-        speakNow(text, TextToSpeech.QUEUE_ADD)
+        val queueSize = synchronized(lock) { pendingQueue.size }
+        Log.d(tag, "announceQueued(): ready=${_isReady.value} queueSize=$queueSize text=$text")
+        enqueueAnnouncement(text = text, flushExisting = false)
     }
 
-    /** 入队待播文本，必要时触发 TTS 重启。 */
-    private fun enqueuePending(text: String, addFirst: Boolean = false) {
-        synchronized(lock) {
-            if (addFirst) {
-                pendingQueue.addFirst(text)
-            } else {
-                pendingQueue.addLast(text)
+    /** 将播报文本转成请求入队，必要时触发 TTS 初始化或继续处理队列。 */
+    private fun enqueueAnnouncement(text: String, flushExisting: Boolean) {
+        if (text.isBlank()) return
+        if (flushExisting) {
+            synchronized(lock) {
+                playbackGeneration += 1L
+                clearQueuedFilesLocked()
+                currentRequest?.file?.delete()
+                currentRequest = null
+                isSynthesizing = false
             }
+            tts?.stop()
+            stopAndReleasePlayer()
         }
-        if (!_isReady.value && !isInitializing) {
-            // TTS 未就绪且没有初始化中的任务时，主动尝试恢复引擎。
+
+        var shouldRestart = false
+        var shouldProcess = false
+        synchronized(lock) {
+            pendingQueue.addLast(createSpeechRequestLocked(text))
+            shouldRestart = !_isReady.value && !isInitializing
+            shouldProcess = _isReady.value && currentRequest == null && !isSynthesizing
+        }
+
+        if (shouldRestart) {
             restartTts(clearPendingQueue = false)
         }
+        if (shouldProcess) {
+            processNextSpeech()
+        }
     }
 
-    /** 按 FIFO 顺序清空待播队列。 */
-    private fun drainPendingQueue() {
-        Log.d(tag, "drainPendingQueue(): ready=true; queueSize=${pendingQueue.size}")
-        while (true) {
-            val text = synchronized(lock) {
-                pendingQueue.removeFirstOrNull()
-            } ?: return
-            if (!speakNow(text, TextToSpeech.QUEUE_ADD)) {
+    /** 创建一条新的播报请求，调用方必须持有 lock。 */
+    private fun createSpeechRequestLocked(text: String): SpeechRequest {
+        val id = nextUtteranceIdLocked()
+        return SpeechRequest(
+            id = id,
+            text = text,
+            file = File(synthesisDir, "$id.wav"),
+            generation = playbackGeneration
+        )
+    }
+
+    /** 生成唯一合成请求 ID，调用方必须持有 lock。 */
+    private fun nextUtteranceIdLocked(): String {
+        requestCounter += 1L
+        return "whispertime_${System.currentTimeMillis()}_$requestCounter"
+    }
+
+    /** 如果空闲且 TTS 已就绪，则取出下一条请求并开始合成文件。 */
+    private fun processNextSpeech() {
+        val request = synchronized(lock) {
+            if (!_isReady.value || isSynthesizing || currentRequest != null) return
+            val next = pendingQueue.removeFirstOrNull() ?: return
+            currentRequest = next
+            isSynthesizing = true
+            next
+        }
+
+        ensureSynthesisDir()
+        val result = tts?.synthesizeToFile(
+            request.text,
+            Bundle(),
+            request.file,
+            request.id
+        ) ?: TextToSpeech.ERROR
+        Log.d(
+            tag,
+            "synthesizeToFile(): id=${request.id} result=$result file=${request.file.name} text=${request.text}"
+        )
+        if (result != TextToSpeech.SUCCESS) {
+            handleSynthesisFailure(
+                utteranceId = request.id,
+                restartEngine = true,
+                keepText = true
+            )
+        }
+    }
+
+    /** 处理 TTS 文件合成完成，过滤过期回调后切到主线程播放。 */
+    private fun handleSynthesisDone(utteranceId: String) {
+        val request = synchronized(lock) {
+            val current = currentRequest ?: return
+            if (current.id != utteranceId) return
+            isSynthesizing = false
+            current
+        }
+        mainHandler.post {
+            playSynthesizedFile(request)
+        }
+    }
+
+    /** 处理 TTS 合成失败或停止，并按需要保留一次重试。 */
+    private fun handleSynthesisFailure(
+        utteranceId: String,
+        restartEngine: Boolean,
+        keepText: Boolean
+    ) {
+        var shouldRestart = false
+        var shouldProcess = false
+        synchronized(lock) {
+            val failed = currentRequest ?: return
+            if (failed.id != utteranceId) return
+            currentRequest = null
+            isSynthesizing = false
+            failed.file.delete()
+            if (keepText &&
+                failed.retryCount < MAX_SYNTHESIS_RETRY_COUNT &&
+                failed.generation == playbackGeneration
+            ) {
+                val retryId = nextUtteranceIdLocked()
+                pendingQueue.addFirst(
+                    failed.copy(
+                        id = retryId,
+                        file = File(synthesisDir, "$retryId.wav"),
+                        retryCount = failed.retryCount + 1
+                    )
+                )
+            }
+            shouldRestart = restartEngine
+            shouldProcess = !restartEngine
+        }
+        if (shouldRestart) {
+            restartTts(clearPendingQueue = false)
+        }
+        if (shouldProcess) {
+            processNextSpeech()
+        }
+    }
+
+    /** 使用本应用 MediaPlayer 播放已经合成好的语音文件。 */
+    private fun playSynthesizedFile(request: SpeechRequest) {
+        val shouldPlay = synchronized(lock) {
+            val current = currentRequest
+            current?.id == request.id && current.generation == request.generation
+        }
+        if (!shouldPlay) {
+            request.file.delete()
+            return
+        }
+        if (!request.file.exists() || request.file.length() <= 0L) {
+            Log.e(tag, "playSynthesizedFile(): missing or empty file id=${request.id}")
+            finishCurrentRequest(request, player = null)
+            return
+        }
+
+        var player: MediaPlayer? = null
+        try {
+            requestAudioFocus()
+            player = MediaPlayer().apply {
+                // 使用媒体用法让声音归属本应用的前台媒体服务，避开系统 TTS 引擎后台播放静音。
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                setDataSource(request.file.absolutePath)
+                setOnCompletionListener { completedPlayer ->
+                    Log.d(tag, "media playback onCompletion id=${request.id}")
+                    finishCurrentRequest(request, completedPlayer)
+                }
+                setOnErrorListener { errorPlayer, what, extra ->
+                    Log.e(tag, "media playback onError id=${request.id} what=$what extra=$extra")
+                    finishCurrentRequest(request, errorPlayer)
+                    true
+                }
+                prepare()
+            }
+
+            val shouldStart = synchronized(lock) {
+                val current = currentRequest
+                if (current?.id == request.id && current.generation == request.generation) {
+                    mediaPlayer = player
+                    true
+                } else {
+                    false
+                }
+            }
+            if (!shouldStart) {
+                player.release()
+                request.file.delete()
+                abandonAudioFocusIfNeeded()
                 return
             }
-        }
-    }
 
-    /** 向 TTS 提交一次播报，失败时回队列头并重启引擎。 */
-    private fun speakNow(text: String, queueMode: Int): Boolean {
-        requestAudioFocus()
-        val utteranceId = "whispertime_${System.currentTimeMillis()}"
-        synchronized(lock) {
-            if (queueMode == TextToSpeech.QUEUE_FLUSH) {
-                // QUEUE_FLUSH 会停止旧播报，因此旧 utterance 不再等待完成回调。
-                pendingUtteranceIds.clear()
+            player.start()
+            Log.d(tag, "media playback start id=${request.id} text=${request.text}")
+        } catch (e: Exception) {
+            Log.e(tag, "playSynthesizedFile(): failed id=${request.id}", e)
+            synchronized(lock) {
+                if (mediaPlayer === player) {
+                    mediaPlayer = null
+                }
             }
-            pendingUtteranceIds.add(utteranceId)
+            runCatching { player?.release() }
+            finishCurrentRequest(request, player = null)
         }
-        val result = tts?.speak(text, queueMode, null, utteranceId) ?: TextToSpeech.ERROR
-        val queueName = if (queueMode == TextToSpeech.QUEUE_FLUSH) "QUEUE_FLUSH" else "QUEUE_ADD"
-        Log.d(tag, "speak($queueName): id=$utteranceId result=$result text=$text")
-        if (result == TextToSpeech.SUCCESS) {
-            return true
-        }
-
-        // 提交失败时不要丢播报内容，放回队列头等待 TTS 恢复。
-        markUtteranceFinished(utteranceId)
-        enqueuePending(text, addFirst = true)
-        restartTts(clearPendingQueue = false)
-        return false
     }
 
-    /** 标记播报完成，并在全部播报结束后释放音频焦点。 */
-    private fun markUtteranceFinished(utteranceId: String) {
-        val shouldAbandonFocus = synchronized(lock) {
-            pendingUtteranceIds.remove(utteranceId)
-            pendingUtteranceIds.isEmpty()
+    /** 完成当前播报请求，释放播放器、删除缓存文件并继续处理下一条。 */
+    private fun finishCurrentRequest(request: SpeechRequest, player: MediaPlayer?) {
+        var shouldReleasePlayer = false
+        var shouldContinue = false
+        synchronized(lock) {
+            if (mediaPlayer === player) {
+                mediaPlayer = null
+                shouldReleasePlayer = true
+            }
+            val current = currentRequest
+            if (current?.id == request.id) {
+                currentRequest = null
+                isSynthesizing = false
+                request.file.delete()
+                shouldContinue = true
+            }
         }
-        if (shouldAbandonFocus) {
+        if (shouldReleasePlayer) {
+            runCatching { player?.release() }
+        }
+        if (shouldContinue) {
             abandonAudioFocusIfNeeded()
+            processNextSpeech()
         }
     }
 
-    /** 申请短暂可降音的音频焦点，避免播报被背景音完全盖住。 */
+    /** 停止并释放当前应用内播放器。 */
+    private fun stopAndReleasePlayer() {
+        val player = synchronized(lock) {
+            val currentPlayer = mediaPlayer
+            mediaPlayer = null
+            currentPlayer
+        }
+        if (player != null) {
+            runCatching {
+                if (player.isPlaying) {
+                    player.stop()
+                }
+            }
+            runCatching { player.release() }
+        }
+        abandonAudioFocusIfNeeded()
+    }
+
+    /** 确保 TTS 文件合成缓存目录存在。 */
+    private fun ensureSynthesisDir() {
+        if (!synthesisDir.exists()) {
+            synthesisDir.mkdirs()
+        }
+    }
+
+    /** 清理队列中尚未播放的合成文件，调用方必须持有 lock。 */
+    private fun clearQueuedFilesLocked() {
+        while (true) {
+            val request = pendingQueue.removeFirstOrNull() ?: return
+            request.file.delete()
+        }
+    }
+
+    /** 清理应用上次异常退出后遗留的语音合成缓存文件。 */
+    private fun cleanSynthesisCache() {
+        runCatching {
+            synthesisDir.listFiles()?.forEach { file ->
+                file.delete()
+            }
+        }
+    }
+
+    /** 申请短暂可降音的音频焦点，避免播报被背景音乐完全盖住。 */
     private fun requestAudioFocus() {
         if (hasAudioFocus) return
         try {
             val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
                 audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
@@ -322,31 +576,38 @@ class VoiceAnnouncementManager(private val context: Context) {
         announce("计时结束")
     }
 
-    /** 关闭 TTS 并清理队列、焦点和状态。 */
+    /** 关闭 TTS、应用内播放器，并清理队列、缓存、焦点和状态。 */
     fun shutdown() {
         Log.d(tag, "shutdown(): begin")
         synchronized(lock) {
-            pendingQueue.clear()
-            pendingUtteranceIds.clear()
+            playbackGeneration += 1L
+            clearQueuedFilesLocked()
+            currentRequest?.file?.delete()
+            currentRequest = null
+            isSynthesizing = false
             isInitializing = false
         }
         tts?.stop()
         tts?.shutdown()
         tts = null
         _isReady.value = false
-        abandonAudioFocusIfNeeded()
+        stopAndReleasePlayer()
+        cleanSynthesisCache()
         Log.d(tag, "shutdown(): done")
     }
 
-    /** 停止当前播报并清空待播队列。 */
+    /** 停止当前播报并清空待播队列，但保留 TTS 初始化状态。 */
     fun stopSpeaking() {
         Log.d(tag, "stopSpeaking(): begin")
         synchronized(lock) {
-            pendingQueue.clear()
-            pendingUtteranceIds.clear()
+            playbackGeneration += 1L
+            clearQueuedFilesLocked()
+            currentRequest?.file?.delete()
+            currentRequest = null
+            isSynthesizing = false
         }
         tts?.stop()
-        abandonAudioFocusIfNeeded()
+        stopAndReleasePlayer()
         Log.d(tag, "stopSpeaking(): done")
     }
 
@@ -360,9 +621,12 @@ class VoiceAnnouncementManager(private val context: Context) {
         return totalSeconds.toString()
     }
 
-    /** TTS 初始化节流常量。 */
+    /** TTS 初始化和合成重试常量。 */
     private companion object {
         /** 两次初始化尝试之间的最短间隔。 */
         const val INIT_RETRY_MIN_INTERVAL_MS = 1_000L
+
+        /** 单条播报合成失败后的最大重试次数。 */
+        const val MAX_SYNTHESIS_RETRY_COUNT = 1
     }
 }
