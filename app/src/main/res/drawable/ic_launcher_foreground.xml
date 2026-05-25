@@ -3,34 +3,54 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- 圆形气泡阴影让主体更稳，不再使用复杂外框。 -->
     <path
-        android:fillColor="#F8FBFF"
-        android:pathData="M54,22A32,32 0 1,1 54,86A32,32 0 0,1 54,22Z" />
+        android:fillAlpha="0.2"
+        android:fillColor="#000000"
+        android:pathData="M54,28A30,30 0,1 1,54 88A30,30 0,0 1,54 28Z" />
     <path
-        android:fillColor="#D7EBF7"
-        android:pathData="M54,28A26,26 0 1,1 54,80A26,26 0 0,1 54,28Z" />
+        android:fillAlpha="0.2"
+        android:fillColor="#000000"
+        android:pathData="M65,81l14,13c1.9,1.8 4.6,-1.1 2.7,-2.9l-6.7,-7.1Z" />
+
+    <!-- 主体圆形气泡对应“想说”的说话入口。 -->
     <path
-        android:fillColor="#F8FBFF"
-        android:pathData="M54,32A22,22 0 1,1 54,76A22,22 0 0,1 54,32Z" />
+        android:fillColor="#F5F7FF"
+        android:pathData="M54,23A31,31 0,1 1,54 85A31,31 0,0 1,54 23Z" />
+
+    <!-- 小尾巴让圆形同时具备对话气泡识别。 -->
     <path
-        android:fillColor="#10314A"
-        android:pathData="M54,41A2.6,2.6 0 1,1 54,46.2A2.6,2.6 0 0,1 54,41Z" />
+        android:fillColor="#F5F7FF"
+        android:pathData="M65,77l14,13c1.9,1.8 4.6,-1.1 2.7,-2.9l-6.7,-7.1Z" />
+
+    <!-- 内层淡色盘面增加层次但保持小尺寸清晰。 -->
     <path
-        android:fillColor="#10314A"
-        android:pathData="M52.6,43.2h2.8v14.8h-2.8z" />
+        android:fillColor="#E0F2FE"
+        android:pathData="M54,32A22,22 0,1 1,54 76A22,22 0,0 1,54 32Z" />
+
+    <!-- 深色圆点是计时指针的轴心。 -->
     <path
-        android:fillColor="#26C6DA"
-        android:pathData="M54,54l10.4,6l-1.8,3.2L52.3,57.4Z" />
+        android:fillColor="#111827"
+        android:pathData="M54,51A4,4 0,1 1,54 59A4,4 0,0 1,54 51Z" />
+
+    <!-- 竖向短针表达时间。 -->
     <path
-        android:fillColor="#10314A"
-        android:pathData="M28,54c0,-5.7 2.2,-10.9 5.8,-14.8l3.7,3.6c-2.7,3 -4.4,6.9 -4.4,11.2s1.7,8.2 4.4,11.2l-3.7,3.6C30.2,64.9 28,59.7 28,54Z" />
+        android:fillColor="#111827"
+        android:pathData="M51.8,38h4.4v17h-4.4z" />
+
+    <!-- 青色长针兼作轻声提醒的动势。 -->
     <path
-        android:fillColor="#10314A"
-        android:pathData="M19,54c0,-8.2 3.2,-15.6 8.4,-21.1l3.6,3.6c-4.3,4.6 -6.9,10.8 -6.9,17.5s2.6,12.9 6.9,17.5l-3.6,3.6C22.2,69.6 19,62.2 19,54Z" />
+        android:fillColor="#22D3EE"
+        android:pathData="M54,53l15,7l-2.3,5l-15.3,-7.2Z" />
+
+    <!-- 左侧两条短声纹保留“说”的语义，避免上一版过度复杂。 -->
     <path
-        android:fillColor="#10314A"
-        android:pathData="M80.5,42.8l3.7,-3.6C87.8,43.1 90,48.3 90,54s-2.2,10.9 -5.8,14.8l-3.7,-3.6c2.7,-3 4.4,-6.9 4.4,-11.2S83.2,45.8 80.5,42.8Z" />
+        android:fillColor="#6366F1"
+        android:pathData="M35,44h10v4h-10z" />
     <path
-        android:fillColor="#10314A"
-        android:pathData="M87,36.5l3.6,-3.6C95.8,38.4 99,45.8 99,54s-3.2,15.6 -8.4,21.1l-3.6,-3.6c4.3,-4.6 6.9,-10.8 6.9,-17.5S91.3,41.1 87,36.5Z" />
+        android:fillColor="#22D3EE"
+        android:pathData="M31,52h14v4h-14z" />
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M35,60h10v4h-10z" />
 </vector>
