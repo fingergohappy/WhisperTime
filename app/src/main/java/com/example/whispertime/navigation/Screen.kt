@@ -5,9 +5,6 @@ sealed class Screen(val route: String) {
     /** 启动页，根据项目数据跳转到计时页或新建页。 */
     object TimerHome : Screen("timer_home")
 
-    /** 项目列表页。 */
-    object ProjectList : Screen("project_list")
-
     /** 项目新建或编辑页。 */
     data class ProjectEdit(val projectId: Long? = null) : Screen(
         if (projectId != null) "project_edit/$projectId" else "project_edit/new"

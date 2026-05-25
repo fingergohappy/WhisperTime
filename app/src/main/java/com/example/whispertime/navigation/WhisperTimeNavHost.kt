@@ -16,7 +16,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.whispertime.ui.project.ProjectEditScreen
-import com.example.whispertime.ui.project.ProjectListScreen
 import com.example.whispertime.ui.record.RecordEditScreen
 import com.example.whispertime.ui.record.RecordListScreen
 import com.example.whispertime.ui.timer.TimerHomeScreen
@@ -57,25 +56,6 @@ fun WhisperTimeNavHost(navController: NavHostController = rememberNavController(
             )
         }
 
-        composable(Screen.ProjectList.route) {
-            ProjectListScreen(
-                onNavigateToTimer = { projectId ->
-                    navController.navigate(Screen.Timer(projectId).route)
-                },
-                onNavigateToRecords = { projectId ->
-                    navController.navigate(Screen.RecordList(projectId).route)
-                },
-                onNavigateToEdit = { projectId ->
-                    val route = if (projectId != null) {
-                        Screen.ProjectEdit(projectId).route
-                    } else {
-                        Screen.ProjectEdit(null).route
-                    }
-                    navController.navigate(route)
-                }
-            )
-        }
-        
         composable(
             route = Screen.ProjectEdit.ROUTE,
             arguments = listOf(
