@@ -1,6 +1,10 @@
 package com.example.whispertime.ui.timer.screen
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -24,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -36,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** 计时圆盘组件，绘制进度环、时间文本和暂停态停止按钮。 */
 @Composable
 internal fun TimerCircle(
     modifier: Modifier = Modifier,
@@ -51,29 +54,29 @@ internal fun TimerCircle(
     onClick: () -> Unit,
     onStop: () -> Unit = {}
 ) {
-    /** 圆盘点击交互源。 */
     val interactionSource = remember { MutableInteractionSource() }
-
-    /** 圆盘是否处于按压状态。 */
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    /** 按压缩放动画值。 */
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "timer_circle_scale"
+    val infiniteTransition = rememberInfiniteTransition(label = "breathing")
+    val breathingAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.08f,
+        targetValue = 0.22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
     )
 
-    /** 按压时外圈光晕透明度。 */
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.28f else 0.12f,
-        animationSpec = tween(durationMillis = 140),
-        label = "timer_circle_glow"
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = tween(150),
+        label = "scale"
     )
 
     Box(
         modifier = modifier
-            .size(292.dp)
+            .size(340.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -87,74 +90,113 @@ internal fun TimerCircle(
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // 用 Canvas 手绘圆环，避免多个布局叠加导致进度和文本不对齐。
-            val radius = size.minDimension / 2f - 10.dp.toPx()
-            val stroke = 8.dp.toPx()
+            val radius = size.minDimension / 2f - 30.dp.toPx()
+            val strokeWidth = 10.dp.toPx()
 
+            // Outer multi-layered glow
             drawCircle(
-                color = primaryColor.copy(alpha = glowAlpha),
-                radius = radius + 10.dp.toPx(),
-                style = Stroke(width = 12.dp.toPx())
+                brush = Brush.radialGradient(
+                    colors = listOf(primaryColor.copy(alpha = breathingAlpha), Color.Transparent),
+                    center = center,
+                    radius = radius + 80.dp.toPx()
+                ),
+                radius = radius + 80.dp.toPx()
             )
 
+            // Decorative background rings
+            drawCircle(
+                color = Color.White.copy(alpha = 0.03f),
+                radius = radius + 20.dp.toPx(),
+                style = Stroke(width = 1.dp.toPx())
+            )
             drawCircle(
                 color = Color.White.copy(alpha = 0.05f),
                 radius = radius,
-                style = Stroke(width = 4.dp.toPx())
+                style = Stroke(width = 1.dp.toPx())
             )
 
+            // Progress Arc
             drawArc(
                 brush = Brush.sweepGradient(
-                    listOf(primaryColor, primaryColor.copy(alpha = 0.4f), primaryColor)
+                    0.0f to primaryColor.copy(alpha = 0.2f),
+                    0.5f to primaryColor,
+                    1.0f to primaryColor.copy(alpha = 0.2f)
                 ),
                 startAngle = -90f,
-                sweepAngle = progress.coerceIn(0f, 1f) * 360f,
+                sweepAngle = progress.coerceIn(0.001f, 1f) * 360f,
                 useCenter = false,
-                topLeft = Offset(size.width / 2f - radius, size.height / 2f - radius),
-                size = Size(radius * 2f, radius * 2f),
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(radius * 2, radius * 2),
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
 
+            // Glow point at the end of progress
+            val angleRad = Math.toRadians((progress * 360f - 90f).toDouble())
+            val dotX = center.x + radius * Math.cos(angleRad).toFloat()
+            val dotY = center.y + radius * Math.sin(angleRad).toFloat()
+
             drawCircle(
-                color = Color.White.copy(alpha = 0.03f),
-                radius = radius - 20.dp.toPx(),
-                blendMode = BlendMode.SrcOver
+                color = Color.White,
+                radius = 5.dp.toPx(),
+                center = Offset(dotX, dotY)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.8f), Color.Transparent),
+                    center = Offset(dotX, dotY),
+                    radius = 15.dp.toPx()
+                ),
+                radius = 15.dp.toPx(),
+                center = Offset(dotX, dotY)
             )
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(bottom = 20.dp)
+        ) {
             if (isPreparing) {
                 Text(
                     text = preparingText,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 100.sp),
-                    color = primaryColor,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-2).sp
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 120.sp,
+                        fontWeight = FontWeight.Light,
+                        color = primaryColor,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = (-4).sp
+                    )
                 )
             } else {
                 Text(
                     text = timeText,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 78.sp),
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-2).sp,
-                    textAlign = TextAlign.Center
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 110.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = FontFamily.SansSerif,
+                        letterSpacing = (-4).sp,
+                        textAlign = TextAlign.Center,
+                        color = Color.White
+                    )
                 )
 
                 if (showStopButton) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = onStop,
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        )
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                        ),
+                        modifier = Modifier.height(48.dp)
                     ) {
-                        Text(primaryHintText, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = primaryHintText,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     secondaryHintText?.let {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = it,
                             style = MaterialTheme.typography.labelSmall,
@@ -165,8 +207,9 @@ internal fun TimerCircle(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = primaryHintText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Light,
                         letterSpacing = 1.sp
                     )
                 }

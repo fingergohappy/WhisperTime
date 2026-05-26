@@ -1,8 +1,11 @@
 package com.example.whispertime.ui.timer.screen
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -11,7 +14,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,13 +35,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -78,37 +83,26 @@ internal fun BottomPanel(
     onEditRecord: (TimingRecordEntity) -> Unit,
     onDeleteRecord: (TimingRecordEntity) -> Unit
 ) {
-    /** 当前面板状态对应的目标高度。 */
     val targetHeight = when (panelState) {
-        BottomPanelState.COLLAPSED -> 56.dp
-        BottomPanelState.HALF -> 360.dp
-        BottomPanelState.EXPANDED -> 740.dp
+        BottomPanelState.COLLAPSED -> 64.dp
+        BottomPanelState.HALF -> 380.dp
+        BottomPanelState.EXPANDED -> 760.dp
     }
 
-    /** 屏幕密度，用于把拖拽像素转换为 dp。 */
     val density = LocalContext.current.resources.displayMetrics.density
-
-    /** 面板高度动画值。 */
     val animatedHeight = remember { Animatable(targetHeight.value) }
-
-    /** 拖拽过程中 snapTo/animateTo 使用的协程作用域。 */
     val scope = rememberCoroutineScope()
 
-    // 外部状态变化时，平滑动画到对应面板高度。
     LaunchedEffect(targetHeight) {
         animatedHeight.animateTo(
             targetValue = targetHeight.value,
-            animationSpec = spring(
-                dampingRatio = 0.72f,
-                stiffness = 320f
-            )
+            animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f)
         )
     }
 
-    /** 约束后的当前面板高度。 */
-    val currentHeight = animatedHeight.value.dp.coerceIn(56.dp, 760.dp)
+    val currentHeight = animatedHeight.value.dp.coerceIn(64.dp, 800.dp)
 
-    Card(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(currentHeight)
@@ -119,73 +113,26 @@ internal fun BottomPanel(
                         onVerticalDrag = { _, dragAmount ->
                             dragAccumulator += dragAmount
                             scope.launch {
-                                // 手指向上拖时 dragAmount 为负，高度应增加。
-                                animatedHeight.snapTo((animatedHeight.value - dragAmount / density).coerceIn(56f, 760f))
+                                animatedHeight.snapTo((animatedHeight.value - dragAmount / density).coerceIn(64f, 800f))
                             }
                         },
                         onDragEnd = {
-                            // 超过阈值才切换状态，短拖拽回弹到原状态。
                             val newState = nextPanelState(panelState, dragAccumulator)
-                            if (newState != panelState) {
-                                onSetPanelState(newState)
-                            } else {
-                                scope.launch {
-                                    animatedHeight.animateTo(
-                                        targetValue = targetHeight.value,
-                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                    )
-                                }
-                            }
+                            onSetPanelState(newState)
                             dragAccumulator = 0f
-                        }
-                    )
-                }
-            }
-            .pointerInput(disabled, panelState) {
-                if (!disabled) {
-                    var dragAccumulator = 0f
-                    detectDragGesturesAfterLongPress(
-                        onDrag = { _, dragAmount ->
-                            dragAccumulator += dragAmount.y
-                            scope.launch {
-                                // 长按后拖拽也使用同一套高度换算逻辑。
-                                animatedHeight.snapTo((animatedHeight.value - dragAmount.y / density).coerceIn(56f, 760f))
-                            }
-                        },
-                        onDragEnd = {
-                            // 长按拖拽结束后根据累计位移切换面板状态。
-                            val newState = nextPanelState(panelState, dragAccumulator)
-                            if (newState != panelState) {
-                                onSetPanelState(newState)
-                            } else {
-                                scope.launch {
-                                    animatedHeight.animateTo(
-                                        targetValue = targetHeight.value,
-                                        animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                    )
-                                }
-                            }
-                            dragAccumulator = 0f
-                        },
-                        onDragCancel = {
-                            scope.launch {
-                                animatedHeight.animateTo(
-                                    targetValue = targetHeight.value,
-                                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 320f)
-                                )
-                            }
                         }
                     )
                 }
             },
         shape = PanelShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+        tonalElevation = 6.dp,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .background(Color.Transparent)
+                .padding(horizontal = 24.dp)
         ) {
             PanelHandle(
                 panelState = panelState,
@@ -200,6 +147,8 @@ internal fun BottomPanel(
                     onChangeTab = onChangeTab
                 )
 
+                Spacer(modifier = Modifier.height(20.dp))
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     BottomTabContent(
                         modifier = Modifier.fillMaxSize(),
@@ -213,16 +162,14 @@ internal fun BottomPanel(
                         enableHorizontalSwipe = !disabled,
                         onChangeTab = onChangeTab,
                         onEditRecord = onEditRecord,
-                        onDeleteRecord = onDeleteRecord,
-                        isFullscreen = panelState == BottomPanelState.EXPANDED
+                        onDeleteRecord = onDeleteRecord
                     )
 
                     if (disabled) {
-                        // 准备倒计时时禁用历史面板交互，保留可见但不可操作的视觉反馈。
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .background(Color.Black.copy(alpha = 0.35f))
+                                .background(Color.Black.copy(alpha = 0.45f))
                         )
                     }
                 }
@@ -231,25 +178,23 @@ internal fun BottomPanel(
     }
 }
 
-/** 根据拖拽累计位移计算下一个面板状态。 */
 private fun nextPanelState(panelState: BottomPanelState, dragAccumulator: Float): BottomPanelState {
-    val threshold = 100f
+    val threshold = 90f
     return when {
         dragAccumulator <= -threshold -> when (panelState) {
             BottomPanelState.COLLAPSED -> BottomPanelState.HALF
             BottomPanelState.HALF -> BottomPanelState.EXPANDED
-            BottomPanelState.EXPANDED -> BottomPanelState.EXPANDED
+            else -> BottomPanelState.EXPANDED
         }
         dragAccumulator >= threshold -> when (panelState) {
             BottomPanelState.EXPANDED -> BottomPanelState.HALF
             BottomPanelState.HALF -> BottomPanelState.COLLAPSED
-            BottomPanelState.COLLAPSED -> BottomPanelState.COLLAPSED
+            else -> BottomPanelState.COLLAPSED
         }
         else -> panelState
     }
 }
 
-/** 底部面板顶部拖拽把手。 */
 @Composable
 private fun PanelHandle(
     panelState: BottomPanelState,
@@ -258,60 +203,95 @@ private fun PanelHandle(
 ) {
     Box(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable(enabled = !disabled) {
+                if (panelState == BottomPanelState.COLLAPSED) {
+                    onSetPanelState(BottomPanelState.HALF)
+                } else {
+                    onSetPanelState(BottomPanelState.COLLAPSED)
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .padding(top = 12.dp, bottom = 8.dp)
-                .width(46.dp)
-                .height(4.dp)
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), CircleShape)
-                .clickable(enabled = !disabled) {
-                    if (panelState == BottomPanelState.COLLAPSED) {
-                        onSetPanelState(BottomPanelState.HALF)
-                    } else {
-                        onSetPanelState(BottomPanelState.COLLAPSED)
-                    }
-                }
+                .padding(vertical = 14.dp)
+                .width(44.dp)
+                .height(5.dp)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f), CircleShape)
         )
     }
 }
 
-/** 底部面板历史和统计标签。 */
 @Composable
 private fun PanelTabs(
     tab: BottomTab,
     disabled: Boolean,
     onChangeTab: (BottomTab) -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { onChangeTab(BottomTab.HISTORY) }, enabled = !disabled) {
-            Text(
-                "HISTORY",
-                color = if (tab == BottomTab.HISTORY) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                letterSpacing = 1.sp
-            )
-        }
-        TextButton(onClick = { onChangeTab(BottomTab.STATS) }, enabled = !disabled) {
-            Text(
-                "STATS",
-                color = if (tab == BottomTab.STATS) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                letterSpacing = 1.sp
-            )
-        }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        TabItem(
+            label = "HISTORY",
+            selected = tab == BottomTab.HISTORY,
+            enabled = !disabled,
+            modifier = Modifier.weight(1f),
+            onClick = { onChangeTab(BottomTab.HISTORY) }
+        )
+        TabItem(
+            label = "STATS",
+            selected = tab == BottomTab.STATS,
+            enabled = !disabled,
+            modifier = Modifier.weight(1f),
+            onClick = { onChangeTab(BottomTab.STATS) }
+        )
     }
 }
 
-/** 底部面板内容，负责历史和统计两个标签页的横滑切换。 */
+@Composable
+private fun TabItem(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(250),
+        label = "tab_bg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(250),
+        label = "tab_content"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(10.dp))
+            .background(backgroundColor)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
 @Composable
 private fun BottomTabContent(
     modifier: Modifier,
@@ -325,10 +305,8 @@ private fun BottomTabContent(
     enableHorizontalSwipe: Boolean,
     onChangeTab: (BottomTab) -> Unit,
     onEditRecord: (TimingRecordEntity) -> Unit,
-    onDeleteRecord: (TimingRecordEntity) -> Unit,
-    isFullscreen: Boolean = false
+    onDeleteRecord: (TimingRecordEntity) -> Unit
 ) {
-    /** 横向拖拽累计值，用于判断标签页切换。 */
     var horizontalDragAccumulator by remember { mutableFloatStateOf(0f) }
 
     Box(
@@ -339,10 +317,9 @@ private fun BottomTabContent(
                         horizontalDragAccumulator += dragAmount
                     },
                     onDragEnd = {
-                        // 左滑进入统计，右滑回到历史。
-                        if (horizontalDragAccumulator <= -40f && tab == BottomTab.HISTORY) {
+                        if (horizontalDragAccumulator <= -60f && tab == BottomTab.HISTORY) {
                             onChangeTab(BottomTab.STATS)
-                        } else if (horizontalDragAccumulator >= 40f && tab == BottomTab.STATS) {
+                        } else if (horizontalDragAccumulator >= 60f && tab == BottomTab.STATS) {
                             onChangeTab(BottomTab.HISTORY)
                         }
                         horizontalDragAccumulator = 0f
@@ -355,22 +332,21 @@ private fun BottomTabContent(
             targetState = tab,
             transitionSpec = {
                 if (targetState.ordinal > initialState.ordinal) {
-                    (slideInHorizontally { it / 3 } + fadeIn()).togetherWith(
-                        slideOutHorizontally { -it / 3 } + fadeOut()
+                    (slideInHorizontally { it / 2 } + fadeIn()).togetherWith(
+                        slideOutHorizontally { -it / 2 } + fadeOut()
                     )
                 } else {
-                    (slideInHorizontally { -it / 3 } + fadeIn()).togetherWith(
-                        slideOutHorizontally { it / 3 } + fadeOut()
+                    (slideInHorizontally { -it / 2 } + fadeIn()).togetherWith(
+                        slideOutHorizontally { it / 2 } + fadeOut()
                     )
                 }
             },
-            label = "bottom_tab_switch"
+            label = "tab_content"
         ) { currentTab ->
             if (currentTab == BottomTab.HISTORY) {
                 HistoryList(
                     records = records,
                     disabled = disabled,
-                    isFullscreen = isFullscreen,
                     onEditRecord = onEditRecord,
                     onDeleteRecord = onDeleteRecord
                 )
@@ -379,260 +355,251 @@ private fun BottomTabContent(
                     totalDurationMs = totalDurationMs,
                     recordCount = recordCount,
                     averageDurationMs = averageDurationMs,
-                    weeklyStats = weeklyStats,
-                    isFullscreen = isFullscreen
+                    weeklyStats = weeklyStats
                 )
             }
         }
     }
 }
 
-/** 历史记录列表内容。 */
 @Composable
 private fun HistoryList(
     records: List<TimingRecordEntity>,
     disabled: Boolean,
-    isFullscreen: Boolean,
     onEditRecord: (TimingRecordEntity) -> Unit,
     onDeleteRecord: (TimingRecordEntity) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         if (records.isEmpty()) {
             item {
-                EmptyHistoryCard(isFullscreen = isFullscreen)
+                EmptyHistoryCard()
             }
         } else {
-            items(records.take(20), key = { it.id }) { record ->
+            items(records, key = { it.id }) { record ->
                 HistoryRecordItem(
                     record = record,
                     disabled = disabled,
-                    isFullscreen = isFullscreen,
                     onEditRecord = onEditRecord,
                     onDeleteRecord = onDeleteRecord
                 )
             }
         }
+        item { Spacer(modifier = Modifier.height(32.dp)) }
     }
 }
 
-/** 空历史记录提示卡片。 */
 @Composable
-private fun EmptyHistoryCard(isFullscreen: Boolean) {
-    Card(
+private fun EmptyHistoryCard() {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = if (isFullscreen) 48.dp else 28.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            .padding(top = 60.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 28.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("暂无记录", color = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-}
-
-/** 单条历史记录行。 */
-@Composable
-private fun HistoryRecordItem(
-    record: TimingRecordEntity,
-    disabled: Boolean,
-    isFullscreen: Boolean,
-    onEditRecord: (TimingRecordEntity) -> Unit,
-    onDeleteRecord: (TimingRecordEntity) -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    Card(
-        shape = RoundedCornerShape(if (isFullscreen) 22.dp else 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isFullscreen) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = if (isFullscreen) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        } else {
-            null
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    val scale = if (isPressed) 0.985f else 1f
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    enabled = !disabled,
-                    onClick = { onEditRecord(record) }
-                )
-                .padding(
-                    horizontal = if (isFullscreen) 16.dp else 12.dp,
-                    vertical = if (isFullscreen) 14.dp else 10.dp
-                ),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    formatDurationHms(record.durationMs),
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    "${formatDate(record.startTime)} - ${formatClock(record.endTime)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            TextButton(onClick = { onEditRecord(record) }, enabled = !disabled) { Text("编辑") }
-            IconButton(onClick = { onDeleteRecord(record) }, enabled = !disabled) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-}
-
-/** 统计标签内容。 */
-@Composable
-private fun StatsPanel(
-    totalDurationMs: Long,
-    recordCount: Int,
-    averageDurationMs: Long,
-    weeklyStats: List<TimerViewModel.WeeklyStat>,
-    isFullscreen: Boolean
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        if (isFullscreen) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatItem("Total", formatLarge(totalDurationMs / 1000L), Modifier.weight(1f), true)
-                StatItem("Sessions", recordCount.toString(), Modifier.weight(1f), true)
-            }
-            StatItem("Average Duration", formatLarge(averageDurationMs / 1000L), Modifier.fillMaxWidth(), true)
-        } else {
-            StatItem("Total Time", formatLarge(totalDurationMs / 1000L))
-            StatItem("Sessions", recordCount.toString())
-            StatItem("Average", formatLarge(averageDurationMs / 1000L))
-        }
-        WeeklyChart(weeklyStats, isFullscreen)
-    }
-}
-
-/** 统计项卡片。 */
-@Composable
-private fun StatItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    emphasize: Boolean = false
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(if (emphasize) 22.dp else 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (emphasize) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = if (emphasize) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        } else {
-            null
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = if (emphasize) 16.dp else 12.dp,
-                    vertical = if (emphasize) 14.dp else 10.dp
-                ),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                value,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                "暂无计时记录",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "点击上方圆盘开始你的第一段专注",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
             )
         }
     }
 }
 
-/** 最近七天柱状图。 */
 @Composable
-private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize: Boolean = false) {
+private fun HistoryRecordItem(
+    record: TimingRecordEntity,
+    disabled: Boolean,
+    onEditRecord: (TimingRecordEntity) -> Unit,
+    onDeleteRecord: (TimingRecordEntity) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.97f else 1f, label = "press_scale")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = !disabled,
+                onClick = { onEditRecord(record) }
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = formatDurationHms(record.durationMs),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${formatDate(record.startTime)} · ${formatClock(record.startTime)} - ${formatClock(record.endTime)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Light
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = { onEditRecord(record) },
+                    enabled = !disabled,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
+                }
+                IconButton(
+                    onClick = { onDeleteRecord(record) },
+                    enabled = !disabled,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsPanel(
+    totalDurationMs: Long,
+    recordCount: Int,
+    averageDurationMs: Long,
+    weeklyStats: List<TimerViewModel.WeeklyStat>
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                label = "Total Time",
+                value = formatLarge(totalDurationMs / 1000L),
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Sessions",
+                value = recordCount.toString(),
+                modifier = Modifier.weight(1f)
+            )
+        }
+        StatCard(
+            label = "Average Session",
+            value = formatLarge(averageDurationMs / 1000L),
+            modifier = Modifier.fillMaxWidth()
+        )
+        
+        WeeklyChart(weeklyStats)
+        
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun StatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.ExtraBold
+                ),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>) {
     if (weeklyStats.isEmpty()) return
-    /** 柱状图归一化使用的最大时长。 */
     val max = weeklyStats.maxOf { it.durationMs }.coerceAtLeast(1L)
 
     Card(
-        shape = RoundedCornerShape(if (emphasize) 24.dp else 16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (emphasize) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
         ),
-        border = if (emphasize) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        } else {
-            null
-        }
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
     ) {
-        Column(modifier = Modifier.padding(if (emphasize) 14.dp else 10.dp)) {
-            if (emphasize) {
-                Text(
-                    "Weekly Trend",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Weekly Activity",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(24.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (emphasize) 120.dp else 90.dp),
+                    .height(130.dp),
                 verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 weeklyStats.forEach { stat ->
-                    // 将每天时长映射为 0..1 的高度比例，并保留最小高度。
-                    val h = (stat.durationMs.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+                    val h = (stat.durationMs.toFloat() / max.toFloat()).coerceIn(0.04f, 1f)
                     Column(
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -640,20 +607,22 @@ private fun WeeklyChart(weeklyStats: List<TimerViewModel.WeeklyStat>, emphasize:
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height((h * if (emphasize) 92f else 70f).dp.coerceAtLeast(4.dp))
+                                .width(22.dp)
+                                .height((h * 100).dp)
                                 .background(
                                     brush = Brush.verticalGradient(
-                                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                                     ),
-                                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                                    shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
                                 )
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             stat.label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

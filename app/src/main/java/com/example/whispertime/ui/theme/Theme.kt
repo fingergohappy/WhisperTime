@@ -1,51 +1,62 @@
 package com.example.whispertime.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
 /** 深色模式配色方案。 */
 private val DarkColorScheme = darkColorScheme(
-    primary = Indigo400,
-    onPrimary = Mist50,
-    secondary = Cyan400,
-    onSecondary = Obsidian950,
-    tertiary = Success400,
-    onTertiary = Obsidian950,
+    primary = Champagne300,
+    onPrimary = Graphite990,
+    primaryContainer = Champagne700,
+    onPrimaryContainer = Porcelain50,
+    secondary = SignalBlue300,
+    onSecondary = Graphite990,
+    secondaryContainer = SignalBlue800,
+    onSecondaryContainer = Porcelain50,
+    tertiary = Champagne500,
+    onTertiary = Graphite990,
+    tertiaryContainer = Graphite800,
+    onTertiaryContainer = Porcelain50,
     error = Danger400,
-    onError = Mist50,
-    background = Obsidian950,
-    onBackground = Mist50,
-    surface = Obsidian900,
-    onSurface = Mist50,
-    surfaceVariant = Obsidian800,
-    onSurfaceVariant = Mist400,
-    outline = Obsidian700
+    onError = Porcelain50,
+    background = Graphite990,
+    onBackground = Porcelain50,
+    surface = Graphite900,
+    onSurface = Porcelain50,
+    surfaceVariant = Graphite800,
+    onSurfaceVariant = Stone300,
+    outline = Graphite700,
+    outlineVariant = Graphite800
 )
 
-/** 浅色模式配色方案，目前沿用深色视觉基调。 */
+/** 浅色模式配色方案，用于后续切换系统亮色时保持同一套品牌色。 */
 private val LightColorScheme = lightColorScheme(
-    primary = Indigo500,
-    onPrimary = Mist50,
-    secondary = Cyan400,
-    onSecondary = Obsidian950,
-    tertiary = Success400,
-    onTertiary = Obsidian950,
+    primary = Champagne700,
+    onPrimary = Porcelain50,
+    primaryContainer = Porcelain100,
+    onPrimaryContainer = Ink900,
+    secondary = SignalBlue600,
+    onSecondary = Porcelain50,
+    secondaryContainer = Porcelain100,
+    onSecondaryContainer = Ink900,
+    tertiary = Champagne500,
+    onTertiary = Graphite990,
+    tertiaryContainer = Porcelain100,
+    onTertiaryContainer = Ink900,
     error = Danger400,
-    onError = Mist50,
-    background = Obsidian950,
-    onBackground = Mist50,
-    surface = Obsidian900,
-    onSurface = Mist50,
-    surfaceVariant = Obsidian800,
-    onSurfaceVariant = Mist400,
-    outline = Obsidian700
+    onError = Porcelain50,
+    background = Porcelain100,
+    onBackground = Ink900,
+    surface = PaperWhite,
+    onSurface = Ink900,
+    surfaceVariant = Stone200,
+    onSurfaceVariant = Stone600,
+    outline = Stone200,
+    outlineVariant = Porcelain100
 )
 
 /** 应用主题入口，统一 Material 配色、字体和系统导航栏颜色。 */

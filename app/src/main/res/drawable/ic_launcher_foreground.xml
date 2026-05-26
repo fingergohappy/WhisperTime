@@ -15,42 +15,42 @@
 
     <!-- 主体圆形气泡对应“想说”的说话入口。 -->
     <path
-        android:fillColor="#F5F7FF"
+        android:fillColor="#FAFAF9"
         android:pathData="M54,23A31,31 0,1 1,54 85A31,31 0,0 1,54 23Z" />
 
     <!-- 小尾巴让圆形同时具备对话气泡识别。 -->
     <path
-        android:fillColor="#F5F7FF"
+        android:fillColor="#FAFAF9"
         android:pathData="M65,77l14,13c1.9,1.8 4.6,-1.1 2.7,-2.9l-6.7,-7.1Z" />
 
     <!-- 内层淡色盘面增加层次但保持小尺寸清晰。 -->
     <path
-        android:fillColor="#E0F2FE"
+        android:fillColor="#F5F5F4"
         android:pathData="M54,32A22,22 0,1 1,54 76A22,22 0,0 1,54 32Z" />
 
     <!-- 深色圆点是计时指针的轴心。 -->
     <path
-        android:fillColor="#111827"
+        android:fillColor="#1C1917"
         android:pathData="M54,51A4,4 0,1 1,54 59A4,4 0,0 1,54 51Z" />
 
     <!-- 竖向短针表达时间。 -->
     <path
-        android:fillColor="#111827"
+        android:fillColor="#1C1917"
         android:pathData="M51.8,38h4.4v17h-4.4z" />
 
-    <!-- 青色长针兼作轻声提醒的动势。 -->
+    <!-- 香槟金长针兼作轻声提醒的动势。 -->
     <path
-        android:fillColor="#22D3EE"
+        android:fillColor="#D4AF37"
         android:pathData="M54,53l15,7l-2.3,5l-15.3,-7.2Z" />
 
     <!-- 左侧两条短声纹保留“说”的语义，避免上一版过度复杂。 -->
     <path
-        android:fillColor="#6366F1"
+        android:fillColor="#8C6D1F"
         android:pathData="M35,44h10v4h-10z" />
     <path
-        android:fillColor="#22D3EE"
+        android:fillColor="#93C5FD"
         android:pathData="M31,52h14v4h-14z" />
     <path
-        android:fillColor="#6366F1"
+        android:fillColor="#8C6D1F"
         android:pathData="M35,60h10v4h-10z" />
 </vector>
