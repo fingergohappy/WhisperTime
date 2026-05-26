@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhisperTime 记录与统计入口原型</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --page-bg: #d8eafa;
+      --phone: #292929;
+      --phone-2: #303030;
+      --card: #383838;
+      --card-2: #424242;
+      --line: rgba(255, 255, 255, 0.08);
+      --text: #f7f7f7;
+      --muted: #adadad;
+      --muted-2: #747474;
+      --accent: #6d7bff;
+      --accent-2: #8290ff;
+      --pink: #ec5f88;
+      --green: #22c982;
+      --yellow: #efd45c;
+      --danger: #ff5e7a;
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    .stage {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(288px, 390px));
+      gap: 72px;
+      align-items: center;
+      justify-content: center;
+      padding: 58px 48px;
+    }
+
+    .mobile-tabs {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px;
+      background: rgba(216, 234, 250, 0.88);
+      backdrop-filter: blur(14px);
+    }
+
+    .mobile-tabs-inner {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 5px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.64);
+      border: 1px solid rgba(255, 255, 255, 0.64);
+    }
+
+    .mobile-tab {
+      min-height: 36px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #4b6580;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .mobile-tab.active {
+      background: #ffffff;
+      color: #23324a;
+    }
+
+    .phone {
+      width: min(100%, 390px);
+      height: 844px;
+      max-height: calc(100vh - 116px);
+      min-height: 720px;
+      overflow: hidden;
+      position: relative;
+      border-radius: 34px;
+      background: var(--phone);
+      border: 1px solid rgba(0, 0, 0, 0.78);
+      box-shadow: 0 34px 74px rgba(29, 63, 101, 0.28);
+    }
+
+    .phone.small {
+      transform: translateY(62px);
+    }
+
+    .phone.large {
+      transform: translateY(-28px);
+    }
+
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--phone);
+    }
+
+    .top-safe {
+      height: 66px;
+      flex: 0 0 auto;
+    }
+
+    .top-bar {
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 18px;
+      flex: 0 0 auto;
+    }
+
+    .title-block {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.1;
+      letter-spacing: 0;
+      font-weight: 850;
+    }
+
+    .title-block p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .icon-button {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      color: var(--muted-2);
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+      flex: 0 0 auto;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      outline: none;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 18px 18px;
+    }
+
+    .timer-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding-top: 6px;
+    }
+
+    .active-card {
+      min-height: 64px;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .task-dot {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      border: 1.5px solid currentColor;
+      display: grid;
+      place-items: center;
+      color: var(--pink);
+      flex: 0 0 auto;
+    }
+
+    .task-dot::after {
+      content: "";
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.18;
+    }
+
+    .task-dot.green {
+      color: var(--green);
+    }
+
+    .task-dot.yellow {
+      color: var(--yellow);
+    }
+
+    .task-dot.blue {
+      color: var(--accent-2);
+    }
+
+    .task-copy {
+      min-width: 0;
+    }
+
+    .task-copy strong {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.25;
+    }
+
+    .task-copy span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .task-progress {
+      text-align: right;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .task-progress span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .mini-close {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+    }
+
+    .timer-center {
+      display: grid;
+      place-items: center;
+      padding: 86px 0 70px;
+    }
+
+    .ring {
+      width: 282px;
+      height: 282px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      position: relative;
+      background:
+        radial-gradient(circle at center, var(--phone) 0 58%, transparent 59%),
+        conic-gradient(var(--accent) 0 31%, #3a3a3a 31% 100%);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+    }
+
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      border: 12px solid rgba(255, 255, 255, 0.035);
+    }
+
+    .ring::after {
+      content: "";
+      position: absolute;
+      right: 30px;
+      bottom: 68px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px rgba(109, 123, 255, 0.7);
+    }
+
+    .time-readout {
+      font-size: 58px;
+      line-height: 1;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .timer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 0 16px 24px;
+    }
+
+    .control-button {
+      min-height: 48px;
+      border: 0;
+      border-radius: var(--radius);
+      color: var(--accent-2);
+      background: rgba(109, 123, 255, 0.18);
+      cursor: pointer;
+      font-weight: 500;
+      transition: transform 160ms ease, background-color 160ms ease;
+    }
+
+    .control-button.primary {
+      color: #ffffff;
+      background: var(--accent);
+    }
+
+    .control-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .bottom-nav {
+      height: 84px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      border-top: 1px solid var(--line);
+      background: #303030;
+      flex: 0 0 auto;
+    }
+
+    .nav-item {
+      border: 0;
+      background: transparent;
+      color: #626262;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 158px;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 18px 0 22px;
+      scrollbar-width: none;
+    }
+
+    .stats-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .stat-tile {
+      min-height: 72px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .stat-tile strong {
+      font-size: 36px;
+      line-height: 1;
+      font-weight: 850;
+    }
+
+    .stat-tile span {
+      color: #c8c8c8;
+      font-size: 13px;
+      line-height: 1.14;
+    }
+
+    .section-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 8px 0 14px;
+    }
+
+    .section-row h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .text-link {
+      border: 0;
+      background: transparent;
+      color: var(--accent-2);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .task-row {
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .task-row.compact {
+      grid-template-columns: auto 1fr auto;
+    }
+
+    .play-ring {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+    }
+
+    .delete-ring {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--danger);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--danger);
+    }
+
+    .cta {
+      width: calc(100% - 34px);
+      min-height: 50px;
+      margin: 28px 17px 18px;
+      border: 0;
+      border-radius: var(--radius);
+      color: #ffffff;
+      background: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .data-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 2px 0 18px;
+      padding: 5px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .data-tab {
+      min-height: 38px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .data-tab.active {
+      color: #ffffff;
+      background: var(--accent);
+    }
+
+    .range-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .range-tab {
+      min-height: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .range-tab.active {
+      color: #ffffff;
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .chart-card,
+    .summary-card,
+    .setting-card,
+    .number-picker {
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .summary-card {
+      min-height: 82px;
+      padding: 13px 15px;
+    }
+
+    .summary-card.wide {
+      grid-column: 1 / -1;
+    }
+
+    .summary-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .chart-card {
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .chart-head strong {
+      font-size: 17px;
+    }
+
+    .chart-head span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .bars {
+      height: 148px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      align-items: end;
+    }
+
+    .bar-col {
+      min-width: 0;
+      display: grid;
+      justify-items: center;
+      align-content: end;
+      gap: 8px;
+      height: 100%;
+    }
+
+    .bar {
+      width: 24px;
+      min-height: 8px;
+      border-radius: 999px 999px 4px 4px;
+      background: #4d4d4d;
+    }
+
+    .bar.active {
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(109, 123, 255, 0.38);
+    }
+
+    .bar-col span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .insights {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .insight-row {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 15px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .insight-row span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .insight-row strong {
+      font-size: 15px;
+    }
+
+    .form-card {
+      display: grid;
+      gap: 18px;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: var(--card);
+      margin: 18px 0 24px;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 12px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .fake-input {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .setting-section {
+      margin: 24px 0;
+    }
+
+    .setting-section h2 {
+      margin: 0 0 14px;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .priority {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .priority button {
+      min-height: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+    }
+
+    .priority button.active {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(34, 201, 130, 0.12);
+    }
+
+    .setting-card {
+      display: grid;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      border: 0;
+      text-align: left;
+      width: 100%;
+    }
+
+    .setting-card:hover,
+    .setting-card:focus-visible {
+      outline: none;
+      background: #414141;
+    }
+
+    .setting-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .setting-card-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .setting-card-title strong {
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .setting-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .number-picker {
+      padding: 16px;
+    }
+
+    .picker-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .picker-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .picker-label strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .picker-label span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .number-track {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #858585;
+      font-size: 15px;
+    }
+
+    .number-track .selected {
+      min-width: 52px;
+      min-height: 34px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #ffffff;
+      background: var(--accent);
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .stage {
+        gap: 28px;
+        padding-inline: 28px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body {
+        background: var(--page-bg);
+      }
+
+      .mobile-tabs {
+        display: block;
+      }
+
+      .stage {
+        min-height: calc(100vh - 64px);
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        padding: 12px 12px 24px;
+      }
+
+      .phone {
+        display: none;
+        width: min(100%, 420px);
+        height: calc(100vh - 92px);
+        max-height: none;
+        min-height: 680px;
+        transform: none !important;
+      }
+
+      .phone.active {
+        display: block;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mobile-tabs" aria-label="移动端原型切换">
+    <div class="mobile-tabs-inner">
+      <button class="mobile-tab active" type="button" data-phone-target="timer">计时</button>
+      <button class="mobile-tab" type="button" data-phone-target="data">数据</button>
+      <button class="mobile-tab" type="button" data-phone-target="settings">设置</button>
+    </div>
+  </nav>
+
+  <main class="stage" aria-label="WhisperTime 入口方案原型">
+    <section class="phone small active" data-phone="timer" aria-label="计时页">
+      <div class="screen">
+        <div class="top-safe"></div>
+
+        <div class="body timer-body">
+          <article class="active-card" aria-label="当前项目">
+            <span class="task-dot"></span>
+            <span class="task-copy">
+              <strong>晨间专注</strong>
+              <span>32 minutes</span>
+            </span>
+            <span class="task-progress">
+              1/4
+              <span>25 min</span>
+            </span>
+            <span class="mini-close">
+              <i data-lucide="x" aria-hidden="true" width="15" height="15"></i>
+            </span>
+          </article>
+
+          <div class="timer-center">
+            <div class="ring" aria-label="当前计时 21 分 05 秒">
+              <div class="time-readout">21:05</div>
+            </div>
+          </div>
+
+          <div class="timer-actions" aria-label="计时控制">
+            <button class="control-button" type="button">Stop</button>
+            <button class="control-button primary" type="button">Pause</button>
+          </div>
+        </div>
+
+        <nav class="bottom-nav" aria-label="计时页底部导航">
+          <button class="nav-item active" type="button" aria-label="计时">
+            <i data-lucide="timer" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="记录与统计" data-phone-target="data">
+            <i data-lucide="list" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="统计" data-phone-target="data" data-open-tab="stats">
+            <i data-lucide="pie-chart" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="项目设置" data-phone-target="settings">
+            <i data-lucide="user" aria-hidden="true"></i>
+          </button>
+        </nav>
+      </div>
+    </section>
+
+    <section class="phone large" data-phone="data" aria-label="记录与统计页">
+      <div class="screen">
+        <div class="top-safe"></div>
+
+        <header class="top-bar">
+          <div class="title-block">
+            <h1>Today</h1>
+            <p>记录与统计 · 晨间专注</p>
+          </div>
+        </header>
+
+        <div class="body">
+          <div class="stats-strip" aria-label="统计概览">
+            <article class="stat-tile">
+              <strong>5.3</strong>
+              <span>Estimated<br>time (h)</span>
+            </article>
+            <article class="stat-tile">
+              <strong>4</strong>
+              <span>Total tasks<br>in project</span>
+            </article>
+            <article class="stat-tile">
+              <strong>18</strong>
+              <span>Records<br>this week</span>
+            </article>
+          </div>
+
+          <div class="data-tabs" role="tablist" aria-label="记录统计切换">
+            <button class="data-tab active" type="button" data-data-tab="records">记录</button>
+            <button class="data-tab" type="button" data-data-tab="stats">统计</button>
+          </div>
+
+          <section data-data-panel="records" aria-label="历史记录">
+            <div class="section-row">
+              <h2>All Records</h2>
+              <button class="text-link" type="button">筛选</button>
+            </div>
+
+            <div class="task-list">
+              <article class="task-row">
+                <span class="task-dot"></span>
+                <span class="task-copy">
+                  <strong>晨间专注</strong>
+                  <span>今天 · 08:10 - 08:52</span>
+                </span>
+                <span class="task-progress">
+                  42m
+                  <span>25 min</span>
+                </span>
+                <span class="play-ring">
+                  <i data-lucide="play" aria-hidden="true" width="14" height="14"></i>
+                </span>
+              </article>
+
+              <article class="task-row">
+                <span class="task-dot yellow"></span>
+                <span class="task-copy">
+                  <strong>阅读</strong>
+                  <span>今天 · 07:20 - 07:45</span>
+                </span>
+                <span class="task-progress">
+                  25m
+                  <span>25 min</span>
+                </span>
+                <span class="play-ring">
+                  <i data-lucide="play" aria-hidden="true" width="14" height="14"></i>
+                </span>
+              </article>
+
+              <article class="task-row">
+                <span class="task-dot green"></span>
+                <span class="task-copy">
+                  <strong>语言学习</strong>
+                  <span>昨天 · 21:30 - 21:55</span>
+                </span>
+                <span class="task-progress">
+                  25m
+                  <span>25 min</span>
+                </span>
+                <span class="play-ring">
+                  <i data-lucide="play" aria-hidden="true" width="14" height="14"></i>
+                </span>
+              </article>
+            </div>
+
+            <div class="section-row" style="margin-top: 24px">
+              <h2>Completed</h2>
+              <button class="text-link" type="button">Hide</button>
+            </div>
+
+            <div class="task-list">
+              <article class="task-row compact">
+                <span class="task-dot green"></span>
+                <span class="task-copy">
+                  <strong>项目复盘</strong>
+                  <span>1 h 30 min</span>
+                </span>
+                <span class="delete-ring">
+                  <i data-lucide="x" aria-hidden="true" width="14" height="14"></i>
+                </span>
+              </article>
+            </div>
+
+            <button class="cta" type="button">
+              <i data-lucide="plus" aria-hidden="true" width="18" height="18"></i>
+              添加记录
+            </button>
+          </section>
+
+          <section data-data-panel="stats" aria-label="统计信息" hidden>
+            <div class="range-tabs" role="tablist" aria-label="统计范围">
+              <button class="range-tab active" type="button">7 天</button>
+              <button class="range-tab" type="button">30 天</button>
+              <button class="range-tab" type="button">全部</button>
+            </div>
+
+            <div class="summary-grid">
+              <article class="summary-card">
+                <span>范围总时长</span>
+                <strong>12h 45m</strong>
+              </article>
+              <article class="summary-card">
+                <span>计时次数</span>
+                <strong>18</strong>
+              </article>
+              <article class="summary-card wide">
+                <span>平均单次</span>
+                <strong>42m 30s</strong>
+              </article>
+            </div>
+
+            <article class="chart-card">
+              <div class="chart-head">
+                <strong>Weekly Activity</strong>
+                <span>最近 7 天</span>
+              </div>
+              <div class="bars" aria-label="最近七天统计柱状图">
+                <div class="bar-col"><div class="bar" style="height: 42px"></div><span>Thu</span></div>
+                <div class="bar-col"><div class="bar" style="height: 76px"></div><span>Fri</span></div>
+                <div class="bar-col"><div class="bar" style="height: 34px"></div><span>Sat</span></div>
+                <div class="bar-col"><div class="bar" style="height: 96px"></div><span>Sun</span></div>
+                <div class="bar-col"><div class="bar" style="height: 72px"></div><span>Mon</span></div>
+                <div class="bar-col"><div class="bar active" style="height: 116px"></div><span>Tue</span></div>
+                <div class="bar-col"><div class="bar active" style="height: 92px"></div><span>Now</span></div>
+              </div>
+            </article>
+
+            <div class="insights">
+              <div class="insight-row">
+                <span>最长单次</span>
+                <strong>1h 12m</strong>
+              </div>
+              <div class="insight-row">
+                <span>最高频时段</span>
+                <strong>08:00</strong>
+              </div>
+              <div class="insight-row">
+                <span>连续记录</span>
+                <strong>5 天</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <nav class="bottom-nav" aria-label="数据页底部导航">
+          <button class="nav-item" type="button" aria-label="计时" data-phone-target="timer">
+            <i data-lucide="timer" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item active" type="button" aria-label="记录">
+            <i data-lucide="list" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="统计" data-phone-target="data" data-open-tab="stats">
+            <i data-lucide="pie-chart" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="项目设置" data-phone-target="settings">
+            <i data-lucide="user" aria-hidden="true"></i>
+          </button>
+        </nav>
+      </div>
+    </section>
+
+    <section class="phone small" data-phone="settings" aria-label="项目设置页">
+      <div class="screen">
+        <div class="top-safe"></div>
+
+        <header class="top-bar">
+          <button class="icon-button" type="button" aria-label="返回计时页" data-phone-target="timer">
+            <i data-lucide="chevron-left" aria-hidden="true" width="34" height="34"></i>
+          </button>
+          <div class="title-block">
+            <h1>Project</h1>
+            <p>设置 · 晨间专注</p>
+          </div>
+        </header>
+
+        <div class="body">
+          <div class="form-card" aria-label="项目基础设置">
+            <label>
+              <span class="field-label">Project name</span>
+              <span class="fake-input">晨间专注</span>
+            </label>
+            <label>
+              <span class="field-label">Description</span>
+              <span class="fake-input">每天早上第一段专注时间</span>
+            </label>
+          </div>
+
+          <section class="setting-section" aria-label="项目数据">
+            <h2>Project data</h2>
+            <button class="setting-card" type="button" data-phone-target="data">
+              <span class="setting-card-top">
+                <span class="setting-card-title">
+                  <i data-lucide="database" aria-hidden="true" width="20" height="20"></i>
+                  <strong>记录与统计</strong>
+                </span>
+                <i data-lucide="chevron-right" aria-hidden="true" width="20" height="20"></i>
+              </span>
+              <p>查看全部历史、7 天/30 天/全部统计和项目汇总。</p>
+            </button>
+          </section>
+
+          <section class="setting-section" aria-label="项目优先级">
+            <h2>Project priority</h2>
+            <div class="priority">
+              <button type="button">High</button>
+              <button type="button">Medium</button>
+              <button class="active" type="button">Low</button>
+            </div>
+          </section>
+
+          <section class="setting-section" aria-label="时间设置">
+            <h2>时间设置</h2>
+            <div class="number-picker">
+              <div class="picker-row">
+                <span class="picker-label">
+                  <strong>Work interval</strong>
+                  <span>Minutes</span>
+                </span>
+                <span class="number-track">
+                  <span>23</span>
+                  <span>24</span>
+                  <span class="selected">25</span>
+                  <span>26</span>
+                </span>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">
+                  <strong>Voice interval</strong>
+                  <span>Minutes</span>
+                </span>
+                <span class="number-track">
+                  <span>3</span>
+                  <span>4</span>
+                  <span class="selected">5</span>
+                  <span>6</span>
+                </span>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">
+                  <strong>Prepare time</strong>
+                  <span>Seconds</span>
+                </span>
+                <span class="number-track">
+                  <span>3</span>
+                  <span>5</span>
+                  <span class="selected">10</span>
+                  <span>15</span>
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <nav class="bottom-nav" aria-label="设置页底部导航">
+          <button class="nav-item" type="button" aria-label="计时" data-phone-target="timer">
+            <i data-lucide="timer" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="记录" data-phone-target="data">
+            <i data-lucide="list" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item" type="button" aria-label="统计" data-phone-target="data" data-open-tab="stats">
+            <i data-lucide="pie-chart" aria-hidden="true"></i>
+          </button>
+          <button class="nav-item active" type="button" aria-label="设置">
+            <i data-lucide="user" aria-hidden="true"></i>
+          </button>
+        </nav>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const phones = Array.from(document.querySelectorAll("[data-phone]"));
+    const mobileTabs = Array.from(document.querySelectorAll("[data-phone-target].mobile-tab"));
+    const dataTabs = Array.from(document.querySelectorAll(".data-tab[data-data-tab]"));
+    const dataPanels = Array.from(document.querySelectorAll("[data-data-panel]"));
+
+    /** 切换移动端当前展示的手机页面，桌面端保留三屏并排。 */
+    function showPhone(name) {
+      phones.forEach((phone) => {
+        phone.classList.toggle("active", phone.dataset.phone === name);
+      });
+      mobileTabs.forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.phoneTarget === name);
+      });
+    }
+
+    /** 切换记录与统计页内部标签，保持范围语义清晰。 */
+    function showDataTab(name) {
+      dataTabs.forEach((tab) => {
+        if (tab.dataset.dataTab) {
+          tab.classList.toggle("active", tab.dataset.dataTab === name);
+        }
+      });
+      dataPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.dataPanel !== name;
+      });
+    }
+
+    /** 绑定所有跨页入口，包括底部导航和设置页里的“记录与统计”。 */
+    document.querySelectorAll("[data-phone-target]").forEach((button) => {
+      button.addEventListener("click", () => {
+        showPhone(button.dataset.phoneTarget);
+        if (button.dataset.openTab) {
+          showDataTab(button.dataset.openTab);
+        }
+      });
+    });
+
+    /** 绑定记录与统计页的二级标签。 */
+    dataTabs.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.dataset.dataTab) {
+          showDataTab(button.dataset.dataTab);
+        }
+      });
+    });
+
+    /** 初始化图标，CDN 失败时页面仍保留文字结构。 */
+    if (window.lucide) {
+      window.lucide.createIcons({ attrs: { strokeWidth: 2 } });
+    }
+  </script>
+</body>
+</html>
